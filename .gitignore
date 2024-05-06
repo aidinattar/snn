@@ -260,6 +260,7 @@ eth80-cropped-close128
 data
 *.csv
 data_mnist
+models
 
 # save models
 saved_l1.net
