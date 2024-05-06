@@ -259,6 +259,7 @@ norb_mat
 eth80-cropped-close128
 data
 *.csv
+data_mnist
 
 # save models
 saved_l1.net
