@@ -19,9 +19,8 @@ class baselineSNN(nn.Module):
         super(baselineSNN, self).__init__()
 
         self.num_classes = num_classes
-        #### LAYER 1 ####
 
-        # convolutional layer
+        #### LAYER 1 ####
         self.conv1 = snn.Convolution(
             in_channels=6,
             out_channels=30,
@@ -29,20 +28,12 @@ class baselineSNN(nn.Module):
             weight_mean=0.8,
             weight_std=0.05
         )
-        
-        # time to live parameter
         self.conv1_t = 15
-
-        # number of winners
         self.k1 = 5
-
-        # radius of inhibition
         self.r1 = 3
 
 
         #### LAYER 2 ####
-        
-        # convolutional layer
         self.conv2 = snn.Convolution(
             in_channels=30,
             out_channels=250,
@@ -50,20 +41,12 @@ class baselineSNN(nn.Module):
             weight_mean=0.8,
             weight_std=0.05
         )
-
-        # time to live parameter
         self.conv2_t = 10
-
-        # number of winners
         self.k2 = 8
-
-        # radius of inhibition
         self.r2 = 1
 
 
         #### LAYER 3 ####
-
-        # convolutional layer
         self.conv3 = snn.Convolution(
             in_channels=250,
             out_channels=200,

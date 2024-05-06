@@ -93,7 +93,7 @@ if __name__ == "__main__":
         )
         test_loader = torch.utils.data.DataLoader(
             test_data,
-            batch_size = args.batch_size,
+            batch_size = len(test_data),
             shuffle = False
         )
     elif args.dataset == "cifar10":
@@ -177,9 +177,9 @@ if __name__ == "__main__":
     # Train model
     # first layer
     print("Training first layer")
-    if os.path.isfile(f"models/{args.dataset}_first_layer.pth"):
+    if os.path.isfile(f"models/customSNN_{args.dataset}_first_layer.pth"):
         snn.load_state_dict(
-            torch.load(f"models/{args.dataset}_first_layer.pth"),
+            torch.load(f"models/customSNN_{args.dataset}_first_layer.pth"),
             strict = False
         )
     else:
@@ -197,17 +197,17 @@ if __name__ == "__main__":
             if epoch % args.save_every == 0:
                 if not os.path.isdir("models"):
                     os.mkdir("models")
-                torch.save(snn.state_dict(), f"models/{args.dataset}_first_layer.pth")
+                torch.save(snn.state_dict(), f"models/customSNN_{args.dataset}_first_layer.pth")
         # save model
         if not os.path.isdir("models"):
             os.mkdir("models")
-        torch.save(snn.state_dict(), f"models/{args.dataset}_first_layer.pth")
+        torch.save(snn.state_dict(), f"models/customSNN_{args.dataset}_first_layer.pth")
 
     # second layer
     print("Training second layer")
-    if os.path.isfile(f"models/{args.dataset}_second_layer.pth"):
+    if os.path.isfile(f"models/customSNN_{args.dataset}_second_layer.pth"):
         snn.load_state_dict(
-            torch.load(f"models/{args.dataset}_second_layer.pth"),
+            torch.load(f"models/customSNN_{args.dataset}_second_layer.pth"),
             strict = False
         )
     else:
@@ -225,12 +225,12 @@ if __name__ == "__main__":
             if epoch % args.save_every == 0:
                 if not os.path.isdir("models"):
                     os.mkdir("models")
-                torch.save(snn.state_dict(), f"models/{args.dataset}_second_layer.pth")
+                torch.save(snn.state_dict(), f"models/customSNN_{args.dataset}_second_layer.pth")
 
         # save model
         if not os.path.isdir("models"):
             os.mkdir("models")
-        torch.save(snn.state_dict(), f"models/{args.dataset}_second_layer.pth")
+        torch.save(snn.state_dict(), f"models/customSNN_{args.dataset}_second_layer.pth")
 
     # adaptive learning rates
     apr = snn.stdp3.learning_rate[0][0].item()
@@ -301,7 +301,7 @@ if __name__ == "__main__":
                     best_test = np.append(performance_test, epoch)
                     if not os.path.isdir("models"):
                         os.mkdir("models")
-                    torch.save(snn.state_dict(), f"models/best_model.pth")
+                    torch.save(snn.state_dict(), f"models/customSNN_best_model.pth")
                 # total_correct += performance_test[0]
                 # total_loss += performance_test[1]
                 # total += len(data)
@@ -329,7 +329,7 @@ if __name__ == "__main__":
     # save model
     if not os.path.isdir("models"):
         os.mkdir("models")
-    torch.save(snn.state_dict(), f"models/{args.dataset}_third_layer.pth")
+    torch.save(snn.state_dict(), f"models/customSNN_{args.dataset}_third_layer.pth")
 
     print("Evaluation")
     # compute the confusion matrix
