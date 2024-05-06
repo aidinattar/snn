@@ -261,6 +261,7 @@ data
 *.csv
 data_mnist
 models
+.vscode
 
 # save models
 saved_l1.net
