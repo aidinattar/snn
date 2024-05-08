@@ -1,8 +1,8 @@
 import torch
 import torch.nn as nn
-from torchsummary import summary
-from torch.nn.parameter import Parameter
 import numpy as np
+import torch.nn.init as init
+from torch.nn.parameter import Parameter
 from SpykeTorch import snn
 from SpykeTorch import functional as sf
 from SpykeTorch import utils
@@ -28,10 +28,13 @@ class deepSNN(nn.Module):
             weight_mean=0.8,
             weight_std=0.05
         )
-        self.conv1_t = 15
+        self.conv1_t = 1
         self.k1 = 5
         self.r1 = 3
 
+        # initialization
+        init.xavier_normal_(self.conv1.weight)
+        # init.zeros_(self.conv1.bias)
 
         #### LAYER 2 ####
         self.conv2 = snn.Convolution(
@@ -41,10 +44,13 @@ class deepSNN(nn.Module):
             weight_mean=0.8,
             weight_std=0.05
         )
-        self.conv2_t = 10
+        self.conv2_t = 1
         self.k2 = 7
         self.r2 = 2
 
+        # initialization
+        init.xavier_normal_(self.conv2.weight)
+        # init.zeros_(self.conv2.bias)
 
         #### LAYER 3 ####
         self.conv3 = snn.Convolution(
@@ -58,6 +64,10 @@ class deepSNN(nn.Module):
         self.k3 = 8
         self.r3 = 1
 
+        # initialization
+        init.xavier_normal_(self.conv3.weight)
+        # init.zeros_(self.conv3.bias)
+
         #### LAYER 4 ####
         self.conv4 = snn.Convolution(
             in_channels=200,
@@ -67,6 +77,9 @@ class deepSNN(nn.Module):
             weight_std=0.05
         )
 
+        # initialization
+        init.xavier_normal_(self.conv4.weight)
+        # init.zeros_(self.conv4.bias)
 
         # STDP
         self.stdp1 = snn.STDP(
@@ -550,55 +563,6 @@ class deepSNN(nn.Module):
             )
         else:
             raise ValueError("Invalid layer index")
-
-
-    def summary(
-        self,
-        save: bool = False,
-        path: str = None,
-        name: str = None,
-    ):
-        """
-        Print the summary of the network
-
-        Parameters
-        ----------
-        save : bool
-            Save the summary to a file. Default is False
-        path : str
-            Path to save the file. Default is None
-        name : str
-            Name of the file. Default is None
-        """
-        class wrapped_model(nn.Module):
-            def __init__(self, model):
-                super(wrapped_model, self).__init__()
-                self.model = model
-
-            def forward(self, x):
-                return self.model(x, 4)
-    
-        model = wrapped_model(self)
-        summary(
-            model = model,
-            input_size = (15, 6, 32, 32),
-            batch_size = 1000,
-            device = "cuda",
-        )
-
-        if save:
-            if path is None:
-                path = "./"
-            if name is None:
-                name = "deepSNN_summary.txt"
-            with open(path + name, "w") as f:
-                summary(
-                    model = self,
-                    input_size = (15, 6, 28, 28),
-                    batch_size = 1000,
-                    device = "cuda",
-                    print_fn = lambda x: f.write(x + "\n")
-                )
 
 
 def custom_summary(

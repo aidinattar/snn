@@ -196,16 +196,40 @@ if __name__ == "__main__":
             if epoch % args.save_every == 0:
                 if not os.path.isdir("models"):
                     os.mkdir("models")
-                torch.save(snn.state_dict(), f"models/deepSNN_{args.dataset}_first_layer.pth")
+                torch.save(
+                    snn.state_dict(),
+                    os.path.join(
+                        "models",
+                        f"deepSNN_{args.dataset}_first_layer.pth"
+                    )
+                )
         # save model
         if not os.path.isdir("models"):
             os.mkdir("models")
-        torch.save(snn.state_dict(), f"models/deepSNN_{args.dataset}_first_layer.pth")
+        torch.save(
+            snn.state_dict(),
+            os.path.join(
+                "models",
+                f"deepSNN_{args.dataset}_first_layer.pth"
+            )
+        )
 
     # second layer
     print("Training second layer")
-    if os.path.isfile(f"models/deepSNN_{args.dataset}_second_layer.pth"):
-        snn.load_state_dict(torch.load(f"models/deepSNN_{args.dataset}_second_layer.pth"))
+    if os.path.isfile(
+        os.path.join(
+            "models",
+            f"deepSNN_{args.dataset}_second_layer.pth"
+        )
+    ):
+        snn.load_state_dict(
+            torch.load(
+                os.path.join(
+                    "models",
+                    f"deepSNN_{args.dataset}_second_layer.pth"
+                )
+            )
+        )
     else:
         for epoch in range(args.epochs_2):
             print(f"Epoch {epoch}")
@@ -221,12 +245,24 @@ if __name__ == "__main__":
             if epoch % args.save_every == 0:
                 if not os.path.isdir("models"):
                     os.mkdir("models")
-                torch.save(snn.state_dict(), f"models/deepSNN_{args.dataset}_second_layer.pth")
+                torch.save(
+                    snn.state_dict(),
+                    os.path.join(
+                        "models",
+                        f"deepSNN_{args.dataset}_second_layer.pth"
+                    )
+                )
 
         # save model
         if not os.path.isdir("models"):
             os.mkdir("models")
-        torch.save(snn.state_dict(), f"models/deepSNN_{args.dataset}_second_layer.pth")
+        torch.save(
+            snn.state_dict(),
+            os.path.join(
+                "models",
+                f"deepSNN_{args.dataset}_second_layer.pth"
+            )
+        )
 
     # adaptive learning rates
     apr = snn.stdp3.learning_rate[0][0].item()
@@ -260,14 +296,13 @@ if __name__ == "__main__":
                 #     target = targets,
                 #     max_layer = 5,
                 # )
-                for layer_idx in range(3, 4):
-                    perf_train_batch = train_rl_separate(
-                        network = snn,
-                        data = data,
-                        target = targets,
-                        max_layer = layer_idx,
-                    )
-                    print(f"Layer {layer_idx} Performance: {perf_train_batch}")
+                perf_train_batch = train_rl_separate(
+                    network = snn,
+                    data = data,
+                    target = targets,
+                    max_layer = 4,
+                )
+                print(f"Performance: {perf_train_batch}")
 
                 # update learning rates
                 apr_adapt = apr * (perf_train_batch[1] * adaptive_int + adaptive_min)
@@ -305,10 +340,14 @@ if __name__ == "__main__":
                     best_test = np.append(performance_test, epoch)
                     if not os.path.isdir("models"):
                         os.mkdir("models")
-                    torch.save(snn.state_dict(), f"models/deepSNN_{args.dataset}__best_model.pth")
-                # total_correct += performance_test[0]
-                # total_loss += performance_test[1]
-                # total += len(data)
+                    torch.save(
+                        snn.state_dict(),
+                        os.path.join(
+                            "models",
+                            f"deepSNN_{args.dataset}_best_model.pth"
+                        )
+                    )
+
                 print(f"Current test accuracy: {performance_test}")
                 print(f"Best test accuracy: {best_test}")
             
@@ -317,7 +356,16 @@ if __name__ == "__main__":
             test_loss.append(performance_test[1])
 
             # save performance in a csv file
-            np.savetxt(f"{args.dataset}_performance.csv", np.array([train_accuracy, train_loss, test_accuracy, test_loss]), delimiter=",")
+            if not os.path.isdir("results"):
+                os.mkdir("results")
+            np.savetxt(
+                os.path.join(
+                    "results",
+                    f"deepSNN_{args.dataset}_performance.csv"
+                ),
+                np.array([train_accuracy, train_loss, test_accuracy, test_loss]),
+                delimiter=","
+            )
     
             # early stopping
             if epoch - best_test[3] > 15:
@@ -332,8 +380,13 @@ if __name__ == "__main__":
     # save model
     if not os.path.isdir("models"):
         os.mkdir("models")
-    torch.save(snn.state_dict(), f"models/deepSNN_{args.dataset}_third_layer.pth")
-
+    torch.save(
+        snn.state_dict(),
+        os.path.join(
+            "models",
+            f"deepSNN_{args.dataset}_third_layer.pth"
+        )
+    )
     print("Evaluation")
     # compute the confusion matrix
     confusion_matrix = np.zeros((
