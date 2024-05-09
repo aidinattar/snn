@@ -34,6 +34,7 @@ if __name__ == "__main__":
     parser.add_argument("--save_every", type=int, default=1, help="Save model every n epochs")
     parser.add_argument("--seed", type=int, default=42, help="Random seed")
     parser.add_argument("--use_cuda", action="store_true", help="Use CUDA", default=True)
+    parser.add_argument("--learning_rate_multiplier", type=float, default=2.0, help="Learning rate multiplier")
     parser.add_argument("--learning_rule", type=str, default="separate", help="Learning rule to use [separate, together]", choices=["separate", "together"])
     args = parser.parse_args()
 
@@ -161,7 +162,7 @@ if __name__ == "__main__":
     # Load model
     snn = deepSNN(
         num_classes = num_classes,
-        learning_rate_multiplier = 1.0,
+        learning_rate_multiplier = args.learning_rate_multiplier,
     )
 
     if args.use_cuda:

@@ -163,7 +163,7 @@ if __name__ == "__main__":
     # Load model
     snn = baselineSNN(
         num_classes = num_classes,
-        learning_rate_multiplier = 2.0,
+        learning_rate_multiplier = args.learning_rate_multiplier,
     )
     if args.use_cuda:
         snn.cuda()
