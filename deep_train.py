@@ -34,6 +34,7 @@ if __name__ == "__main__":
     parser.add_argument("--save_every", type=int, default=1, help="Save model every n epochs")
     parser.add_argument("--seed", type=int, default=42, help="Random seed")
     parser.add_argument("--use_cuda", action="store_true", help="Use CUDA", default=True)
+    parser.add_argument("--learning_rule", type=str, default="separate", help="Learning rule to use [separate, together]", choices=["separate", "together"])
     args = parser.parse_args()
 
     # Check if CUDA is available
@@ -292,20 +293,24 @@ if __name__ == "__main__":
            
             # train
             for data, targets in train_loader:
-                # perf_train_batch = train_rl(
-                #     network = snn,
-                #     data = data,
-                #     target = targets,
-                #     max_layer = 4,
-                # )
-                perf_train_batch = train_rl_separate(
-                    network = snn,
-                    data = data,
-                    target = targets,
-                    max_layer = 4,
-                )
-                print(f"Performance: {perf_train_batch}")
+                if args.learning_rule == "together":
+                    perf_train_batch = train_rl(
+                        network = snn,
+                        data = data,
+                        target = targets,
+                        max_layer = 4,
+                    )
+                elif args.learning_rule == "separate":
+                    perf_train_batch = train_rl_separate(
+                        network = snn,
+                        data = data,
+                        target = targets,
+                        max_layer = 4,
+                    )
+                else:
+                    raise ValueError(f"Unknown learning rule: {args.learning_rule}")
 
+                print(f"Performance: {perf_train_batch}")
                 # update learning rates
                 apr_adapt = apr * (perf_train_batch[1] * adaptive_int + adaptive_min)
                 anr_adapt = anr * (perf_train_batch[1] * adaptive_int + adaptive_min)

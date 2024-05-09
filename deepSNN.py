@@ -32,10 +32,6 @@ class deepSNN(nn.Module):
         self.k1 = 5
         self.r1 = 3
 
-        # initialization
-        # init.xavier_uniform_(self.conv1.weight)
-        # init.zeros_(self.conv1.bias)
-
         #### LAYER 2 ####
         self.conv2 = snn.Convolution(
             in_channels=30,
@@ -46,11 +42,7 @@ class deepSNN(nn.Module):
         )
         self.conv2_t = 10
         self.k2 = 7
-        self.r2 = 2
-
-        # initialization
-        # init.xavier_uniform_(self.conv2.weight)
-        # init.zeros_(self.conv2.bias)
+        self.r2 = 1
 
         #### LAYER 3 ####
         self.conv3 = snn.Convolution(
@@ -60,13 +52,9 @@ class deepSNN(nn.Module):
             weight_mean=0.8,
             weight_std=0.05
         )
-        self.conv3_t = 300
-        self.k3 = 8
+        self.conv3_t = 350
+        self.k3 = 10
         self.r3 = 1
-
-        # initialization
-        # init.xavier_uniform_(self.conv3.weight)
-        # init.zeros_(self.conv3.bias)
 
         #### LAYER 4 ####
         self.conv4 = snn.Convolution(
@@ -76,10 +64,6 @@ class deepSNN(nn.Module):
             weight_mean=0.8,
             weight_std=0.05
         )
-
-        # initialization
-        # init.xavier_normal_(self.conv4.weight)
-        # init.zeros_(self.conv4.bias)
 
         # STDP
         self.stdp1 = snn.STDP(
