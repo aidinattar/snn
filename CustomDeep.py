@@ -28,7 +28,7 @@ class baselineSNN(nn.Module):
             weight_mean=0.8,
             weight_std=0.05
         )
-        self.conv1_t = 15
+        self.conv1_t = 15 # 98th percentile
         self.k1 = 5
         self.r1 = 3
 
@@ -41,7 +41,7 @@ class baselineSNN(nn.Module):
             weight_mean=0.8,
             weight_std=0.05
         )
-        self.conv2_t = 10
+        self.conv2_t = 10 # 97th percentile
         self.k2 = 8
         self.r2 = 1
 
