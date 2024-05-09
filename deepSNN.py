@@ -28,12 +28,12 @@ class deepSNN(nn.Module):
             weight_mean=0.8,
             weight_std=0.05
         )
-        self.conv1_t = 1
+        self.conv1_t = 15
         self.k1 = 5
         self.r1 = 3
 
         # initialization
-        init.xavier_normal_(self.conv1.weight)
+        # init.xavier_uniform_(self.conv1.weight)
         # init.zeros_(self.conv1.bias)
 
         #### LAYER 2 ####
@@ -44,12 +44,12 @@ class deepSNN(nn.Module):
             weight_mean=0.8,
             weight_std=0.05
         )
-        self.conv2_t = 1
+        self.conv2_t = 10
         self.k2 = 7
         self.r2 = 2
 
         # initialization
-        init.xavier_normal_(self.conv2.weight)
+        # init.xavier_uniform_(self.conv2.weight)
         # init.zeros_(self.conv2.bias)
 
         #### LAYER 3 ####
@@ -60,12 +60,12 @@ class deepSNN(nn.Module):
             weight_mean=0.8,
             weight_std=0.05
         )
-        self.conv3_t = 25
+        self.conv3_t = 300
         self.k3 = 8
         self.r3 = 1
 
         # initialization
-        init.xavier_normal_(self.conv3.weight)
+        # init.xavier_uniform_(self.conv3.weight)
         # init.zeros_(self.conv3.bias)
 
         #### LAYER 4 ####
@@ -78,7 +78,7 @@ class deepSNN(nn.Module):
         )
 
         # initialization
-        init.xavier_normal_(self.conv4.weight)
+        # init.xavier_normal_(self.conv4.weight)
         # init.zeros_(self.conv4.bias)
 
         # STDP
@@ -265,7 +265,7 @@ class deepSNN(nn.Module):
                     kernel_size = 2,
                     stride = 2,
                 ),
-                pad = (2, 2, 2, 2),
+                pad = (1, 1, 1, 1),
             )
             pot = self.conv2(spk_in)
             spk, pot = sf.fire(
@@ -591,7 +591,7 @@ def custom_summary(
         output_shape = list(output.size())
         num_params = sum(p.numel() for p in module.parameters() if p.requires_grad)
         total_params += num_params
-        print(f"{layer_name:23} {str(output_shape):22} {num_params:10,}")
+        print(f"{layer_name:23} {str(output_shape):22} {num_params:10,} {'-' if num_params == 0 else ''}")
 
     for _, layer in model.named_children():
         hook_handles.append(layer.register_forward_hook(hook_fn))

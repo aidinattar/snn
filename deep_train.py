@@ -178,10 +178,11 @@ if __name__ == "__main__":
 
     # Train model
     # first layer
-    print("Training first layer")
     if os.path.isfile(f"models/deepSNN_{args.dataset}_first_layer.pth"):
+        print("Loading model for first layer")
         snn.load_state_dict(torch.load(f"models/deepSNN_{args.dataset}_first_layer.pth"))
     else:
+        print("Training first layer")
         for epoch in range(args.epochs_1):
             print(f"Epoch {epoch}")
             iteration = 0
@@ -215,13 +216,13 @@ if __name__ == "__main__":
         )
 
     # second layer
-    print("Training second layer")
     if os.path.isfile(
         os.path.join(
             "models",
             f"deepSNN_{args.dataset}_second_layer.pth"
         )
     ):
+        print("Loading model for second layer")
         snn.load_state_dict(
             torch.load(
                 os.path.join(
@@ -231,6 +232,7 @@ if __name__ == "__main__":
             )
         )
     else:
+        print("Training second layer")
         for epoch in range(args.epochs_2):
             print(f"Epoch {epoch}")
             iteration = 0
@@ -294,7 +296,7 @@ if __name__ == "__main__":
                 #     network = snn,
                 #     data = data,
                 #     target = targets,
-                #     max_layer = 5,
+                #     max_layer = 4,
                 # )
                 perf_train_batch = train_rl_separate(
                     network = snn,
