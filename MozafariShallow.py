@@ -32,7 +32,7 @@ from torchvision import transforms
 
 # %%
 parser = argparse.ArgumentParser(description='Mozafari 2018')
-parser.add_argument('--task', type=str, default='Caltech', help='Task to perform: Caltech, ETH, Norb', choices=['Caltech', 'ETH', 'Norb'])
+parser.add_argument('--task', type=str, default='ETH', help='Task to perform: Caltech, ETH, Norb', choices=['Caltech', 'ETH', 'Norb'])
 parser.add_argument('--use_cuda', type=bool, default=True, help='Use CUDA', choices=[True, False])
 args = parser.parse_args()
 
@@ -162,7 +162,8 @@ elif task == "ETH":
 
     def target_transform(target):
         return target//10
-    datafolder = utils.CacheDataset(ImageFolder("eth80-cropped-close128", s1c1, target_transform=target_transform))
+    datafolder = utils.CacheDataset(ImageFolder("dataset/eth", s1c1, target_transform=target_transform))
+    # datafolder = utils.CacheDataset(ImageFolder("eth80-cropped-close128", s1c1, target_transform=target_transform))
     # reduce the dataset with random instances
     # datafolder = Subset(datafolder, np.random.randint(0, 10, 8))
 

@@ -2,9 +2,6 @@
 train.py
 """
 
-import matplotlib.pyplot as plt
-plt.ion()
-
 import os
 os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"   
 os.environ["CUDA_VISIBLE_DEVICES"]="0"
@@ -13,6 +10,7 @@ import argparse
 import torch
 import torchvision
 import numpy as np
+import matplotlib.pyplot as plt
 from SpykeTorch import snn
 from SpykeTorch import functional as sf
 from SpykeTorch import visualization as vis
