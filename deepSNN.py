@@ -52,9 +52,9 @@ class deepSNN(nn.Module):
             weight_mean=0.8,
             weight_std=0.05
         )
-        self.conv3_t = 400
+        self.conv3_t = 350
         self.k3 = 15
-        self.r3 = 0
+        self.r3 = 2
 
         #### LAYER 4 ####
         self.conv4 = snn.Convolution(
@@ -138,6 +138,7 @@ class deepSNN(nn.Module):
         }
         self.spk_cnt1 = 0
         self.spk_cnt2 = 0
+        self.spk_cnt3 = 0
 
         self.ctx3 = {
             'input_spikes': None,
@@ -308,19 +309,19 @@ class deepSNN(nn.Module):
                 return_thresholded_potentials = True,
             )
             
-            # self.spk_cnt3 += 1
-            # if self.spk_cnt3 >= 500:
-            #     self.spk_cnt3 = 0
-            #     ap = torch.tensor(
-            #         self.stdp3.learning_rate[0][0].item(),
-            #         device = self.stdp3.learning_rate[0][0].device
-            #     ) * 2
-            #     ap = torch.min(ap, self.max_ap)
-            #     an = ap * -.75
-            #     self.stdp3.update_all_learning_rate(
-            #         ap.item(),
-            #         an.item()
-            #     )
+            self.spk_cnt3 += 1
+            if self.spk_cnt3 >= 500:
+                self.spk_cnt3 = 0
+                ap = torch.tensor(
+                    self.stdp3.learning_rate[0][0].item(),
+                    device = self.stdp3.learning_rate[0][0].device
+                ) * 2
+                ap = torch.min(ap, self.max_ap)
+                an = ap * -.75
+                self.stdp3.update_all_learning_rate(
+                    ap.item(),
+                    an.item()
+                )
 
             if layer_idx == 3:
                 winners = sf.get_k_winners(

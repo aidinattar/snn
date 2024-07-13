@@ -81,6 +81,8 @@ class baselineSNN(nn.Module):
             lower_bound = 0.2,
             upper_bound = 0.8,
         )
+        # print(self.stdp3.learning_rate[0][0].item())
+        # print(self.stdp3.learning_rate[0][1].item())
 
         # ANTI STDP
         self.anti_stdp3 = snn.STDP(
@@ -93,6 +95,8 @@ class baselineSNN(nn.Module):
             lower_bound = 0.2,
             upper_bound = 0.8,
         )
+        # print(self.anti_stdp3.learning_rate[0][1].item())
+        # print(self.anti_stdp3.learning_rate[0][0].item())
 
         # adaptive learning rate
         self.max_ap = Parameter(torch.tensor([0.15]))
@@ -109,6 +113,8 @@ class baselineSNN(nn.Module):
         }
         self.spk_cnt1 = 0
         self.spk_cnt2 = 0
+
+        self.file = open("log_custom.txt", "w")
 
 
     def generate_decision_map(self):
@@ -275,6 +281,8 @@ class baselineSNN(nn.Module):
             output = -1
             if len(winners) != 0:
                 output = self.decision_map[winners[0][0]]
+                # print(output)
+                self.file.write(str(output) + "\n")
             return output
             
         else:
@@ -325,6 +333,9 @@ class baselineSNN(nn.Module):
             output = -1
             if len(winners) != 0:
                 output = self.decision_map[winners[0][0]]
+                # print(output)
+                # save in file
+                self.file.write(str(output) + "\n")
             return output
         
     def stdp(

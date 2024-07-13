@@ -34,7 +34,7 @@ if __name__ == "__main__":
     parser.add_argument("--save_every", type=int, default=1, help="Save model every n epochs")
     parser.add_argument("--seed", type=int, default=42, help="Random seed")
     parser.add_argument("--use_cuda", action="store_true", help="Use CUDA", default=True)
-    parser.add_argument("--learning_rate_multiplier", type=float, default=2.0, help="Learning rate multiplier")
+    parser.add_argument("--learning_rate_multiplier", type=float, default=1.0, help="Learning rate multiplier")
     args = parser.parse_args()
 
     # Check if CUDA is available
@@ -262,12 +262,13 @@ if __name__ == "__main__":
                     data = data,
                     target = targets,
                 )
-                # print(perf_train_batch)
+                print(perf_train_batch)
                 # update adaptive learning rates
                 apr_adapt = apr * (perf_train_batch[1] * adaptive_int + adaptive_min)
                 anr_adapt = anr * (perf_train_batch[1] * adaptive_int + adaptive_min)
                 app_adapt = app * (perf_train_batch[0] * adaptive_int + adaptive_min)
                 anp_adapt = anp * (perf_train_batch[0] * adaptive_int + adaptive_min)
+                print(f"APR: {apr_adapt}, ANR: {anr_adapt}, APP: {app_adapt}, ANP: {anp_adapt}")
                 snn.update_learning_rates(
                     stdp_ap = apr_adapt,
                     stdp_an = anr_adapt,
@@ -320,6 +321,7 @@ if __name__ == "__main__":
 
 
     except KeyboardInterrupt:
+        snn.file.close()
         print("Training interrupted")
         print(f"Best train accuracy: {best_train}")
         print(f"Best test accuracy: {best_test}")

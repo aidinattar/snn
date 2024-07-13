@@ -11,6 +11,7 @@ import torch
 import torchvision
 import numpy as np
 import matplotlib.pyplot as plt
+from tqdm import tqdm
 from SpykeTorch import snn
 from SpykeTorch import functional as sf
 from SpykeTorch import visualization as vis
@@ -184,8 +185,8 @@ if __name__ == "__main__":
         for epoch in range(args.epochs_1):
             print(f"Epoch {epoch}")
             iteration = 0
-            for data, targets in train_loader:
-                print(f"Iteration {iteration}")
+            for data, targets in tqdm(train_loader, desc="Training"):
+                # print(f"Iteration {iteration}")
                 train_unsupervise(
                     network = snn,
                     data = data,
@@ -222,8 +223,8 @@ if __name__ == "__main__":
                 for epoch in range(args.epochs_2):
                     print(f"Epoch {epoch}")
                     iteration = 0
-                    for data, targets in train_loader:
-                        print(f"Iteration {iteration}")
+                    for data, targets in tqdm(train_loader, desc="Training"):
+                        # print(f"Iteration {iteration}")
                         train_unsupervise(
                             network = snn,
                             data = data,
@@ -264,7 +265,7 @@ if __name__ == "__main__":
         for epoch in range(args.epochs_3):
             print(f"Epoch {epoch}")
             performance_train = np.array([0., 0., 0.]) # correct, total, loss, epoch
-            for data, targets in train_loader:
+            for data, targets in tqdm(train_loader, desc="Training"):
                 perf_train_batch = train_rl(
                     network = snn,
                     data = data,
@@ -293,7 +294,7 @@ if __name__ == "__main__":
             train_accuracy.append(performance_train[0])
             train_loss.append(performance_train[1])
 
-            for data, targets in test_loader:
+            for data, targets in tqdm(test_loader, desc="Testing"):
                 performance_test = test(
                     network = snn,
                     data = data,
