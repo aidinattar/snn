@@ -15,10 +15,12 @@ import utils
 import argparse
 import numpy as np
 from tqdm import tqdm
-from mozafari2018 import MozafariMNIST2018
-from deep2024 import DeepSNN
-from deepr2024 import DeepRSNN, DeepRSNN2
-from inception2024 import InceptionSNN
+from model.mozafari2018 import MozafariMNIST2018
+from model.deep2024 import DeepSNN
+from model.deepr2024 import DeepRSNN, DeepRSNN2
+from model.inception2024 import InceptionSNN
+from model.majority2024 import MajoritySNN
+from model.resnet2024 import ResSNN
 
 # Set random seed for reproducibility
 torch.manual_seed(42)
@@ -66,6 +68,14 @@ def main():
         max_layers = 4
     elif args.model == "inception2024":
         model = InceptionSNN(num_classes=num_classes, device=args.device, tensorboard=args.tensorboard)
+        epochs = args.epochs[3]
+        max_layers = 4
+    elif args.model == "majority2024":
+        model = MajoritySNN(num_classes=num_classes, device=args.device, tensorboard=args.tensorboard)
+        epochs = args.epochs[2]
+        max_layers = 3
+    elif args.model == "resnet2024":
+        model = ResSNN(num_classes=num_classes, device=args.device, tensorboard=args.tensorboard)
         epochs = args.epochs[3]
         max_layers = 4
     else:
@@ -127,7 +137,7 @@ def main():
         # save model
         torch.save(model.state_dict(), f"models/{args.model}_{args.dataset}_second_layer.pth")
 
-    if args.model in ["deepr2024", "deepr2024_2"]:
+    if args.model in ["deep2024", "deepr2024", "deepr2024_2", 'resnet2024']:
         # third layer
         if os.path.isfile(f"models/{args.model}_{args.dataset}_third_layer.pth"):
             print("Loading third layer model")
@@ -168,25 +178,6 @@ def main():
             # save model
             torch.save(model.state_dict(), f"models/{args.model}_{args.dataset}_third_layer.pth")
 
-        # fourth layer
-        if os.path.isfile(f"models/{args.model}_{args.dataset}_fourth_layer.pth"):
-            print("Loading fourth layer model")
-            model.load_state_dict(
-                torch.load(f"models/{args.model}_{args.dataset}_fourth_layer.pth"),
-                strict = False
-            )
-        else:
-            iterator = tqdm(range(args.epochs[3]), desc="Training Fourth Layer")
-            for epoch in iterator:
-                i = 0
-                for data, _ in train_loader:
-                    data = data.to(args.device)
-                    model.train_unsupervised(data, layer_idx=4)
-                    iterator.set_postfix({"Iteration": i+1})
-                    i += 1
-            # save model
-            torch.save(model.state_dict(), f"models/{args.model}_{args.dataset}_fourth_layer.pth")
-
     # # Log initial embeddings
     # embeddings, metadata, label_img = utils.get_embeddings_metadata(model, train_loader, args.device)
     # model.writer.add_embedding(embeddings, metadata, label_img, global_step=0, tag='Embeddings')
@@ -202,21 +193,24 @@ def main():
         anr3 = model.block3['stdp'].learning_rate[0][1].item()
         app3 = model.block3['anti_stdp'].learning_rate[0][1].item()
         anp3 = model.block3['anti_stdp'].learning_rate[0][0].item()
-    if args.model in ["deep2024", "deepr2024", "deepr2024_2"]:
+    if args.model in ["deep2024", "deepr2024", "deepr2024_2", "inception2024", "resnet2024"]:
         apr4 = model.block4['stdp'].learning_rate[0][0].item()
         anr4 = model.block4['stdp'].learning_rate[0][1].item()
         app4 = model.block4['anti_stdp'].learning_rate[0][1].item()
         anp4 = model.block4['anti_stdp'].learning_rate[0][0].item()
-
-    # apr_adapt3 = ((1.0 - 1.0 / 10) * adaptive_int + adaptive_min) * apr3
-    # anr_adapt3 = ((1.0 - 1.0 / 10) * adaptive_int + adaptive_min) * anr3
-    # app_adapt3 = ((1.0 / 10) * adaptive_int + adaptive_min) * app3
-    # anp_adapt3 = ((1.0 / 10) * adaptive_int + adaptive_min) * anp3
-
-    # apr_adapt4 = ((1.0 - 1.0 / 10) * adaptive_int + adaptive_min) * apr4
-    # anr_adapt4 = ((1.0 - 1.0 / 10) * adaptive_int + adaptive_min) * anr4
-    # app_adapt4 = ((1.0 / 10) * adaptive_int + adaptive_min) * app4
-    # anp_adapt4 = ((1.0 / 10) * adaptive_int + adaptive_min) * anp4
+    if args.model in ["majority2024"]:
+        apr3_1 = model.block3_1['stdp'].learning_rate[0][0].item()
+        anr3_1 = model.block3_1['stdp'].learning_rate[0][1].item()
+        app3_1 = model.block3_1['anti_stdp'].learning_rate[0][1].item()
+        anp3_1 = model.block3_1['anti_stdp'].learning_rate[0][0].item()
+        apr3_2 = model.block3_2['stdp'].learning_rate[0][0].item()
+        anr3_2 = model.block3_2['stdp'].learning_rate[0][1].item()
+        app3_2 = model.block3_2['anti_stdp'].learning_rate[0][1].item()
+        anp3_2 = model.block3_2['anti_stdp'].learning_rate[0][0].item()
+        apr3_3 = model.block3_3['stdp'].learning_rate[0][0].item()
+        anr3_3 = model.block3_3['stdp'].learning_rate[0][1].item()
+        app3_3 = model.block3_3['anti_stdp'].learning_rate[0][1].item()
+        anp3_3 = model.block3_3['anti_stdp'].learning_rate[0][0].item()
 
     # performance
     best_train = np.array([0., 0., 0., 0.]) # correct, total, loss, epoch
@@ -251,7 +245,7 @@ def main():
                         anti_stdp_an = anp_adapt3,
                         layer_idx = 3
                     )
-                if args.model in ["deep2024", "deepr2024", "deepr2024_2"]:
+                if args.model in ["deep2024", "deepr2024", "deepr2024_2", "inception2024", "resnet2024"]:
                     apr_adapt4 = apr4 * (perf_train_batch[1] * adaptive_int + adaptive_min)
                     anr_adapt4 = anr4 * (perf_train_batch[1] * adaptive_int + adaptive_min)
                     app_adapt4 = app4 * (perf_train_batch[0] * adaptive_int + adaptive_min)
@@ -264,6 +258,45 @@ def main():
                         anti_stdp_an = anp_adapt4,
                         layer_idx = 4
                     )
+                if args.model in ["majority2024"]:
+                    apr_adapt3_1 = apr3_1 * (perf_train_batch[1] * adaptive_int + adaptive_min)
+                    anr_adapt3_1 = anr3_1 * (perf_train_batch[1] * adaptive_int + adaptive_min)
+                    app_adapt3_1 = app3_1 * (perf_train_batch[0] * adaptive_int + adaptive_min)
+                    anp_adapt3_1 = anp3_1 * (perf_train_batch[0] * adaptive_int + adaptive_min)
+                    apr_adapt3_2 = apr3_2 * (perf_train_batch[1] * adaptive_int + adaptive_min)
+                    anr_adapt3_2 = anr3_2 * (perf_train_batch[1] * adaptive_int + adaptive_min)
+                    app_adapt3_2 = app3_2 * (perf_train_batch[0] * adaptive_int + adaptive_min)
+                    anp_adapt3_2 = anp3_2 * (perf_train_batch[0] * adaptive_int + adaptive_min)
+                    apr_adapt3_3 = apr3_3 * (perf_train_batch[1] * adaptive_int + adaptive_min)
+                    anr_adapt3_3 = anr3_3 * (perf_train_batch[1] * adaptive_int + adaptive_min)
+                    app_adapt3_3 = app3_3 * (perf_train_batch[0] * adaptive_int + adaptive_min)
+                    anp_adapt3_3 = anp3_3 * (perf_train_batch[0] * adaptive_int + adaptive_min)
+
+                    model.update_learning_rates(
+                        stdp_ap = apr_adapt3_1,
+                        stdp_an = anr_adapt3_1,
+                        anti_stdp_ap = app_adapt3_1,
+                        anti_stdp_an = anp_adapt3_1,
+                        layer_idx = 3,
+                        branch_idx = 0
+                    )
+                    model.update_learning_rates(
+                        stdp_ap = apr_adapt3_2,
+                        stdp_an = anr_adapt3_2,
+                        anti_stdp_ap = app_adapt3_2,
+                        anti_stdp_an = anp_adapt3_2,
+                        layer_idx = 3,
+                        branch_idx = 1
+                    )
+                    model.update_learning_rates(
+                        stdp_ap = apr_adapt3_3,
+                        stdp_an = anr_adapt3_3,
+                        anti_stdp_ap = app_adapt3_3,
+                        anti_stdp_an = anp_adapt3_3,
+                        layer_idx = 3,
+                        branch_idx = 2
+                    )
+                
                 perf_train += perf_train_batch
 
                 total_correct += perf_train_batch[0]
