@@ -268,11 +268,6 @@ saved_l1.net
 saved_l2.net
 saved.net
 
-*.png
-*.jpg
-*.jpeg
-*.gif
-*.net
 data*
 
 runs*
