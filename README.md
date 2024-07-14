@@ -1,32 +1,103 @@
-# SpykeTorch
-High-speed simulator of convolutional spiking neural networks with at most one spike per neuron.
+# Spiking Neural Network (SNN) Training with SpykeTorch
 
-<img src="https://raw.githubusercontent.com/miladmozafari/SpykeTorch/master/logo.png" alt="alt text" width=50%>
+## Introduction
 
-SpykeTorch is a PyTorch-based simulator of convolutional spiking neural networks, in which the neurons emit at most one spike per stimulus. SpykeTorch supports STDP and Reward-modulated STDP learning rules. The current code is the early object oriented version of this simulator and you can find the documentation in docs folder in PDF format or in our lab website (http://cnrl.ut.ac.ir/SpykeTorch/doc/) in HTML format. Since SpykeTorch is fully compatible with PyTorch, you can easily use it if you know PyTorch. A tutorial is available in the paper titled "SpykeTorch: Efficient Simulation of Convolutional Spiking Neural Networks with at most one Spike per Neuron" which introduces the SpykeTorch package (https://www.frontiersin.org/articles/10.3389/fnins.2019.00625/full).
+This repository provides an implementation of Spiking Neural Networks (SNNs) using the SpykeTorch library. SNNs are a type of artificial neural network that more closely mimic the neural mechanisms of the brain, offering potential advantages in computational efficiency and power consumption. This repository includes various SNN architectures and training methods, including Spike-Timing Dependent Plasticity (STDP) and Reward-Modulated STDP (R-STDP).
 
-**IMPORTANT**: Current version of SpykeTorch does not support negative synaptic weights.
+![SNN Illustration](images/snn_illustration.png)
 
-To setup this package, you can install Anaconda or Miniconda
+## What is an SNN?
+
+A Spiking Neural Network (SNN) is an artificial neural network that models neurons more realistically by using spikes to process and transmit information. Unlike traditional artificial neural networks that use continuous values for neuron activations, SNNs operate with discrete events (spikes) that occur at specific points in time.
+
+## What is STDP?
+
+Spike-Timing Dependent Plasticity (STDP) is a biological learning rule observed in the brain. It adjusts the synaptic strength between neurons based on the relative timing of their spikes. If a presynaptic neuron's spike precedes a postsynaptic neuron's spike, the connection is strengthened (Long-Term Potentiation, LTP). Conversely, if the postsynaptic spike precedes the presynaptic spike, the connection is weakened (Long-Term Depression, LTD).
+
+![LongTermPotentiation](images/Long-Term-Potentiation.png)
+
+## What is R-STDP?
+
+Reward-Modulated STDP (R-STDP) extends the STDP learning rule by incorporating a reward signal. This reward signal modulates the synaptic changes induced by STDP, allowing the network to learn from both the timing of spikes and an external reward signal, which is useful for reinforcement learning tasks.
+
+![RSTDP](images/RSTDP.png)
+
+## SpykeTorch
+
+This codebase utilizes the [SpykeTorch](https://github.com/miladmozafari/SpykeTorch) library, which provides tools for implementing and training SNNs with STDP and R-STDP learning rules.
+
+## Repository Organization
+
+- `s1c1.py`: Contains a class that extracts edges using Differences of Gaussians (DoG) and performs intensity-to-latency encoding.
+- `utils.py`: Contains utility functions used throughout the project.
+- `train.py`: The main script for training and evaluating the models.
+- `network_trainer.py`: A general class that contains methods to train and evaluate SNNs. It serves as a parent class for the models.
+- `models/`:
+  - `mozafari2018.py`: Contains the SNN architecture explained in the paper by Mozafari et al., 2018.
+  - `deep2024.py`: Implements a deep network with three STDP layers and one R-STDP decision-making layer.
+  - `deepr2024.py`: Contains two networks with two STDP and two R-STDP layers. One network trains all R-STDP layers together, while the other trains them in a greedy manner.
+  - `inception2024.py`: A deep network with an inception-like block that extracts features over different scales.
+  - `majority2024.py`: Similar to `inception2024.py` but uses a form of population coding with a majority rule instead of concatenating parallel layers.
+
+## Getting Started
+
+### Prerequisites
+
+- Python 3.11.7
+- PyTorch
+- SpykeTorch
+- Other dependencies as listed in `requirements.txt`
+
+### Installation
+
+Clone the repository:
+
+```bash
+git clone https://github.com/aidinattar/snn.git
+cd snn-training-spyketorch
 ```
-# Clone the repository
-git clone https://github.com/miladmozafari/SpykeTorch
 
-# Create a new conda environment
-conda create -n spyketorchproject python=3
-conda activate spyketorchproject
+Install the required dependencies:
 
-# Install all the dependencies
+```bash
 pip install -r requirements.txt
 ```
-```
-# Alternatively, one can just run the following command
-pip install git+https://github.com/miladmozafari/SpykeTorch.git
+
+## Training and Evaluation
+To train and evaluate a model, use the `train.py` script. For example, to train the DeepSNN model on the MNIST dataset:
+
+```bash
+python train.py --model deep2024 --epochs 2 4 4 10 --tensorboard
 ```
 
-**Scripts info:**
- - [`MozafariShallow.py`](MozafariShallow.py): Reimplementation of the paper "First-Spike-Based Visual Categorization Using Reward-Modulated STDP" (https://ieeexplore.ieee.org/document/8356226/).
- - [`MozafariDeep.py`](MozafariDeep.py): Reimplementation of the paper "Bio-Inspired Digit Recognition Using Reward-Modulated Spike-Timing-Dependent Plasticity in Deep Convolutional Networks" (https://www.sciencedirect.com/science/article/abs/pii/S0031320319301906).
- - [`KheradpishehDeep.py`](KheradpishehDeep.py): Reimplementation of the paper "STDP-based spiking deep convolutional neural networks for object recognition" (https://www.sciencedirect.com/science/article/pii/S0893608017302903).
- - [`tutorial.ipynb`](tutorial.ipynb): A brief tutorial on designing, training, and evaluating a SNN with SpykeTorch.
+### Models
+#### Mozafari2018
+This model implements the architecture described in the paper by Mozafari et al., 2018. It uses STDP for training.
 
+#### Deep2024
+A deep SNN with three STDP layers and one R-STDP decision-making layer.
+
+#### Deepr2024
+Contains two networks with two STDP and two R-STDP layers. One network trains all R-STDP layers together, while the other trains them in a greedy manner.
+
+#### Inception2024
+A deep network with an inception-like block that extracts features over different scales.
+
+#### Majority2024
+Similar to inception2024.py but uses a form of population coding with a majority rule instead of concatenating parallel layers.
+
+### Results and Visualization
+#### Training History
+The training history, including accuracy and loss for each epoch, is saved and can be visualized using TensorBoard.
+
+#### Activation Maps
+Activation maps for each layer can be optionally saved for further analysis. Note that saving activation maps can take a significant amount of time, and can be disabled if not needed.
+
+#### Evaluation Metrics
+The evaluation metrics, including confusion matrix, F1 score, ROC AUC score, and accuracy, are computed and saved during the evaluation phase.
+
+## Acknowledgements
+This repository is based on the work of Mozafari et al. and utilizes the SpykeTorch library for SNN training and evaluation.
+
+## License
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
