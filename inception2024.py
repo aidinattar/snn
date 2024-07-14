@@ -37,7 +37,7 @@ class InceptionSNN(NetworkTrainer):
         self.block2 = nn.ModuleDict({
             'conv': snn.Convolution(
                 in_channels=30,
-                out_channels=150,
+                out_channels=75,
                 kernel_size=3,
                 weight_mean=0.8,
                 weight_std=0.05
@@ -47,8 +47,8 @@ class InceptionSNN(NetworkTrainer):
         })
         self.block3_1 = nn.ModuleDict({
             'conv': snn.Convolution(
-                in_channels=150,
-                out_channels=250,
+                in_channels=75,
+                out_channels=100,
                 kernel_size=3,
                 weight_mean=0.8,
                 weight_std=0.05
@@ -58,8 +58,8 @@ class InceptionSNN(NetworkTrainer):
         })
         self.block3_2 = nn.ModuleDict({
             'conv': snn.Convolution(
-                in_channels=150,
-                out_channels=250,
+                in_channels=75,
+                out_channels=100,
                 kernel_size=5,
                 weight_mean=0.8,
                 weight_std=0.05
@@ -69,8 +69,8 @@ class InceptionSNN(NetworkTrainer):
         })
         self.block3_3 = nn.ModuleDict({
             'conv': snn.Convolution(
-                in_channels=150,
-                out_channels=250,
+                in_channels=75,
+                out_channels=100,
                 kernel_size=7,
                 weight_mean=0.8,
                 weight_std=0.05
@@ -80,7 +80,7 @@ class InceptionSNN(NetworkTrainer):
         })
         self.block4 = nn.ModuleDict({
             'conv': snn.Convolution(
-                in_channels=250,
+                in_channels=300,
                 out_channels=200,
                 kernel_size=5,
                 weight_mean=0.8,
