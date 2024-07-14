@@ -10,14 +10,16 @@
 ################################################################################
 
 import os
-import sys
-import time
 import torch
+import struct
 import datetime
 import numpy as np
 import torchvision
+import matplotlib.pyplot as plt
 from s1c1 import S1C1
 from SpykeTorch import utils
+from tqdm import tqdm
+from imageio import imwrite
 
 def get_time():
     """Get the current time"""
@@ -283,46 +285,29 @@ def is_model_on_cuda(model):
     """Check if the model is on CUDA"""
     return next(model.parameters()).is_cuda
 
-"""
-generate_norb_dataset.py
-
-Code partially taken from https://github.com/ndrplz/small_norb.git
-
-This script generates the NORB dataset from the raw data files. The NORB dataset
-is a dataset of stereo images of 3D objects. The dataset is available at
-https://cs.nyu.edu/~ylclab/data/norb-v1.0-small/. The dataset is divided into
-two parts: a small dataset and a large dataset. The small dataset contains 24300
-training examples and 24300 test examples. The large dataset contains 24300
-training examples and 24300 test examples. The small dataset is used in this
-script.
-
-The dataset is stored for each example as a 96x96 image. The images are stored
-in jpegs, so they need to be decoded.
-
-The dataset is stored in a binary format. The training set is stored in a file
-called 'smallnorb-5x46789x9x18x6x2x96x96-training-dat.mat'. The test set is
-stored in a file called 'smallnorb-5x01235x9x18x6x2x96x96-testing-dat.mat'.
-The labels for the training set are stored in a file called
-'smallnorb-5x46789x9x18x6x2x96x96-training-cat.mat'. The labels for the test set
-are stored in a file called 'smallnorb-5x01235x9x18x6x2x96x96-testing-cat.mat'.
-"""
-
-import os
-import argparse
-import struct
-import numpy as np
-import matplotlib.pyplot as plt
-from tqdm import tqdm
-from imageio import imwrite
-
-parser = argparse.ArgumentParser(description='Generate NORB dataset.')
-parser.add_argument('--train_size', type=int, default=24300, help='Size of the training set')
-parser.add_argument('--test_size', type=int, default=24300, help='Size of the test set')
-parser.add_argument('--dataset_root', type=str, default='norb_mat', help='Path to the NORB dataset root directory')
-parser.add_argument('--export_dir', type=str, default='norb', help='Directory to export the generated dataset')
-args = parser.parse_args()
 
 class SmallNORBDataset:
+    """
+    Code partially taken from https://github.com/ndrplz/small_norb.git
+
+    This script generates the NORB dataset from the raw data files. The NORB dataset
+    is a dataset of stereo images of 3D objects. The dataset is available at
+    https://cs.nyu.edu/~ylclab/data/norb-v1.0-small/. The dataset is divided into
+    two parts: a small dataset and a large dataset. The small dataset contains 24300
+    training examples and 24300 test examples. The large dataset contains 24300
+    training examples and 24300 test examples. The small dataset is used in this
+    script.
+
+    The dataset is stored for each example as a 96x96 image. The images are stored
+    in jpegs, so they need to be decoded.
+
+    The dataset is stored in a binary format. The training set is stored in a file
+    called 'smallnorb-5x46789x9x18x6x2x96x96-training-dat.mat'. The test set is
+    stored in a file called 'smallnorb-5x01235x9x18x6x2x96x96-testing-dat.mat'.
+    The labels for the training set are stored in a file called
+    'smallnorb-5x46789x9x18x6x2x96x96-training-cat.mat'. The labels for the test set
+    are stored in a file called 'smallnorb-5x01235x9x18x6x2x96x96-testing-cat.mat'.
+    """
     def __init__(self, dataset_root):
         self.dataset_root = dataset_root
         self.dataset_files = self._get_dataset_files()
