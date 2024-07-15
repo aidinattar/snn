@@ -128,9 +128,9 @@ def find_percentile_range(arr, percentile):
     
     return lower_range, upper_range
 
-def get_embeddings_metadata(model, dataloader, device):
+def get_embeddings_metadata(model, dataloader, device, max_layer=None):
     """
-    Get embeddings and metadata from a model and dataloader
+    Get embeddings and metadata from a single batch in a dataloader
 
     Parameters
     ----------
@@ -140,6 +140,8 @@ def get_embeddings_metadata(model, dataloader, device):
         The dataloader to get metadata from
     device : torch.device
         The device to use
+    max_layer : int
+        Maximum layer to get embeddings from
 
     Returns
     -------
@@ -147,22 +149,26 @@ def get_embeddings_metadata(model, dataloader, device):
         The embeddings
     list
         The metadata
+    torch.Tensor
+        The label images
     """
     model.eval()
     embeddings = []
     metadata = []
     label_imgs = []
-    
+
     with torch.no_grad():
-        for data, target in dataloader:
-            data, target = data.to(device), target.to(device)
-            output = model(data)
+        data, target = next(iter(dataloader))
+        for data_in, target_in in zip(data, target):
+            data_in, target_in = data_in.to(device), target_in.to(device)
+            output = model.get_embeddings(data_in, max_layer=max_layer)
             embeddings.append(output)
-            metadata.extend(target.cpu().numpy())
-            label_imgs.append(data.cpu())
-    
+            metadata.append(target_in.cpu().numpy())
+            label_imgs.append(data_in.cpu())
+
+    embeddings = [e.unsqueeze(0) if e.dim() == 0 else e for e in embeddings]
     embeddings = torch.cat(embeddings)
-    label_imgs = torch.cat(label_imgs)
+    label_imgs = torch.stack(label_imgs).squeeze(1)
     return embeddings, metadata, label_imgs
 
 def prepare_data(dataset, batch_size):

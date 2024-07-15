@@ -290,8 +290,8 @@ class DeepRSNN(NetworkTrainer):
         """Get the output of the network"""
         if len(winners) != 0:
             # self.file.write(str(self.decision_map[winners[0][0]]) + "\n")
-            return self.decision_map[winners[0][0]]
-        return -1
+            return torch.tensor(self.decision_map[winners[0][0]], device=self.device)
+        return torch.tensor(-1, device=self.device)
 
     def update_learning_rate(self, stdp_layer):
         """Update the learning rate of the STDP layer"""

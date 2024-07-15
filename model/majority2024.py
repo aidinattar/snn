@@ -313,10 +313,10 @@ class MajoritySNN(NetworkTrainer):
         if len(winners) != 0:
             if np.sum(winners) >= 0:
                 if np.max(votes) < 2:
-                    return branch_votes[1], branch_votes
+                    return torch.tensor(branch_votes[1], device=self.device), branch_votes
                 else:
-                    return np.argmax(votes), branch_votes
-        return -1
+                    return torch.tensor(np.argmax(votes), device=self.device), branch_votes
+        return torch.tensor(-1, device=self.device)
 
     def update_learning_rate(self, stdp_layer):
         """Update the learning rate of the STDP layer"""

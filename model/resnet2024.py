@@ -121,11 +121,18 @@ class ResSNN(NetworkTrainer):
             upper_bound=0.8
         )
 
-        self.skip_connection = nn.Conv2d(
+        # self.skip_connection = nn.Conv2d(
+        #     in_channels=150,
+        #     out_channels=250,
+        #     kernel_size=1,
+        #     bias=False
+        # )
+        self.skip_connection = snn.Convolution(
             in_channels=150,
             out_channels=250,
             kernel_size=1,
-            bias=False
+            weight_mean=0.8,
+            weight_std=0.05
         )
 
         self.spk_cnt1 = 0
@@ -176,7 +183,9 @@ class ResSNN(NetworkTrainer):
             
             # Skip connection
             spk_skip = nn.functional.interpolate(spk_skip, size=spk.shape[2:], mode='bilinear', align_corners=False)
-            spk = torch.logical_and(spk, spk_skip).int()
+            spk = torch.logical_and(spk, spk_skip).float()
+
+            del spk_skip
 
             if max_layer == 3:
                 self.update_layer3(spk_in, pot)
@@ -211,20 +220,22 @@ class ResSNN(NetworkTrainer):
         spk, pot = sf.fire(pot, self.block1_params['threshold'], True)
         if max_layer == 1:
             return spk, pot
-        
-        spk_skip = self.skip_connection(spk)
 
         pot = self.block2['conv'](sf.pad(sf.pooling(spk, 2, 2), (1, 1, 1, 1)))
         spk, pot = sf.fire(pot, self.block2_params['threshold'], True)
         if max_layer == 2:
             return spk, pot
 
+        spk_skip = self.skip_connection(spk)
+
         pot = self.block3['conv'](sf.pad(sf.pooling(spk, 2, 2), (1, 1, 1, 1)))
         spk, pot = sf.fire(pot, self.block3_params['threshold'], True)
 
         # Skip connection
         spk_skip = nn.functional.interpolate(spk_skip, size=spk.shape[2:], mode='bilinear', align_corners=False)
-        spk = torch.logical_and(spk, spk_skip).int()
+        spk = torch.logical_and(spk, spk_skip).float()
+
+        del spk_skip
 
         if max_layer == 3:
             return spk, pot
@@ -288,8 +299,8 @@ class ResSNN(NetworkTrainer):
         """Get the output of the network"""
         if len(winners) != 0:
             # self.file.write(str(self.decision_map[winners[0][0]]) + "\n")
-            return self.decision_map[winners[0][0]]
-        return -1
+            return torch.tensor(self.decision_map[winners[0][0]], device=self.device)
+        return torch.tensor(-1, device=self.device)
 
     def update_learning_rate(self, stdp_layer):
         """Update the learning rate of the STDP layer"""

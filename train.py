@@ -93,9 +93,9 @@ def main():
     # Register hooks for activation maps
     model.register_hooks()
 
-    # # Log model to TensorBoard
-    # if args.tensorboard:
-    #     model.log_model(input_size=(6,15,28,28))
+    # Log model to TensorBoard
+    if args.tensorboard:
+        model.log_model(input_size=(15,6,28,28))
 
     #############################
     # Train the model           #
@@ -179,7 +179,7 @@ def main():
             torch.save(model.state_dict(), f"models/{args.model}_{args.dataset}_third_layer.pth")
 
     # # Log initial embeddings
-    # embeddings, metadata, label_img = utils.get_embeddings_metadata(model, train_loader, args.device)
+    # embeddings, metadata, label_img = utils.get_embeddings_metadata(model, train_loader, args.device, max_layers)
     # model.writer.add_embedding(embeddings, metadata, label_img, global_step=0, tag='Embeddings')
 
     # Train the R-STDP layer
@@ -348,7 +348,7 @@ def main():
             model.log_tensorboard(metrics, epoch)
 
             # # Log embeddings at the end of each epoch
-            # embeddings, metadata, label_img = utils.get_embeddings_metadata(model, train_loader, args.device)
+            # embeddings, metadata, label_img = utils.get_embeddings_metadata(model, train_loader, args.device, max_layers)
             # model.writer.add_embedding(embeddings, metadata, label_img, global_step=epoch, tag='Embeddings')
 
             if epoch - best_test[3] > 10:

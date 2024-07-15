@@ -15,7 +15,6 @@ import torchvision
 import numpy as np
 import torch.nn as nn
 import matplotlib.pyplot as plt
-from torchsummary import summary
 from sklearn.metrics import confusion_matrix, f1_score, accuracy_score, recall_score, precision_score
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' # Suppress TensorFlow logging
@@ -192,7 +191,7 @@ class NetworkTrainer(nn.Module):
             target_in = target_in.to(self.device)
             d = self(data_in, layer_idx)
             if d != -1:
-                self.all_preds.append(d)
+                self.all_preds.append(d.cpu())
                 self.all_targets.append(target_in.cpu().item())
         
         self.all_preds = np.array(self.all_preds)
@@ -365,9 +364,9 @@ class NetworkTrainer(nn.Module):
         """
         if not self.tensorboard:
             return
-        dummy_input = torch.zeros(1, *input_size).to(self.device)
+        dummy_input = torch.zeros(*input_size).to(self.device)
         self.writer.add_graph(self, dummy_input)
-        summary(self, input_size)
+        self.summary(input_size)
 
     def log_inputs(self, data, epoch, tag='Inputs'):
         """
@@ -384,9 +383,21 @@ class NetworkTrainer(nn.Module):
         """
         if not self.tensorboard:
             return
+
+        # Select the first sample and move it to the device
         data = data.to(self.device)
-        grid = torchvision.utils.make_grid(data)
-        self.writer.add_image(tag, grid, epoch)
+        
+        # Get the number of channels and temporal dimension
+        temporal_dim, n_channels, height, width = data.size()[1:]
+        
+        # Log each time step separately
+        for t in range(temporal_dim):
+            # Extract the time step
+            time_step_data = data[:, t, :, :, :]
+            # Make a grid
+            grid = torchvision.utils.make_grid(time_step_data)
+            # Log the grid
+            self.writer.add_image(f"{tag}/TimeStep_{t}", grid, epoch)
 
     def log_embedding(self, embeddings, metadata, label_img, epoch, tag='Embedding'):
         """
@@ -407,4 +418,113 @@ class NetworkTrainer(nn.Module):
         """
         if not self.tensorboard:
             return
-        self.writer.add_embedding(embeddings, metadata, label_img, global_step=epoch, tag=tag)
+
+        # Flatten the label_img from (N, C, T, H, W) to (N, C, H, W) by averaging over T
+        label_img_flat = label_img.mean(dim=2)
+
+        self.writer.add_embedding(embeddings, metadata, label_img_flat, global_step=epoch, tag=tag)
+
+    def summary(self, input_size):
+        def register_hook(module):
+            def hook(module, input, output):
+                class_name = str(module.__class__).split(".")[-1].split("'")[0]
+                module_idx = len(summary)
+
+                m_key = f"{class_name}-{module_idx + 1}"
+                summary[m_key] = {}
+                summary[m_key]["input_shape"] = list(input[0].size())
+                if isinstance(output, (list, tuple)):
+                    summary[m_key]["output_shape"] = [
+                        [-1] + list(o.size())[1:] for o in output
+                    ]
+                else:
+                    summary[m_key]["output_shape"] = list(output.size())
+
+                params = 0
+                if hasattr(module, "weight") and hasattr(module.weight, "size"):
+                    params += torch.prod(torch.tensor(module.weight.size()))
+                    summary[m_key]["trainable"] = module.weight.requires_grad
+                if hasattr(module, "bias") and hasattr(module.bias, "size"):
+                    params += torch.prod(torch.tensor(module.bias.size()))
+                summary[m_key]["nb_params"] = params
+
+            if (
+                not isinstance(module, nn.Sequential)
+                and not isinstance(module, nn.ModuleList)
+                and not (module == self)
+            ):
+                hooks.append(module.register_forward_hook(hook))
+
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.to(device)
+
+        summary = {}
+        hooks = []
+
+        self.apply(register_hook)
+
+        dummy_input = torch.zeros(*input_size).to(device)
+        self(dummy_input)
+
+        for hook in hooks:
+            hook.remove()
+
+        print("----------------------------------------------------------------")
+        line_new = "{:>20}  {:>25} {:>15}".format("Layer (type)", "Output Shape", "Param #")
+        print(line_new)
+        print("================================================================")
+        total_params = 0
+        total_output = 0
+        trainable_params = 0
+        for layer in summary:
+            line_new = "{:>20}  {:>25} {:>15}".format(
+                layer,
+                str(summary[layer]["output_shape"]),
+                "{0:,}".format(summary[layer]["nb_params"]),
+            )
+            total_params += summary[layer]["nb_params"]
+            total_output += torch.prod(
+                torch.tensor(summary[layer]["output_shape"])
+            ).item()
+            if "trainable" in summary[layer] and summary[layer]["trainable"]:
+                trainable_params += summary[layer]["nb_params"]
+            print(line_new)
+
+        total_input_size = abs(torch.prod(torch.tensor(input_size)).item() * 4. / (1024 ** 2.))
+        total_output_size = abs(2. * total_output * 4. / (1024 ** 2.))
+        total_params_size = abs(total_params.numpy() * 4. / (1024 ** 2.))
+
+        print("================================================================")
+        print("Total params: {0:,}".format(total_params))
+        print("Trainable params: {0:,}".format(trainable_params))
+        print("Non-trainable params: {0:,}".format(total_params - trainable_params))
+        print("----------------------------------------------------------------")
+        print("Input size (MB): %0.2f" % total_input_size)
+        print("Forward/backward pass size (MB): %0.2f" % total_output_size)
+        print("Params size (MB): %0.2f" % total_params_size)
+        print("Estimated Total Size (MB): %0.2f" % (total_input_size + total_output_size + total_params_size))
+        print("----------------------------------------------------------------")
+
+    def get_embeddings(self, input, max_layer=4):
+        """
+        Get embeddings from the network
+
+        Parameters
+        ----------
+        input : torch.Tensor
+            Input data
+        max_layer : int
+            Maximum layer to go through
+
+        Returns
+        -------
+        torch.Tensor
+            Embeddings from the network
+        """
+        output = self.forward(input, max_layer)
+        
+        # Convert the output to a tensor if it's an integer
+        if isinstance(output, int):
+            output = torch.tensor([output], device=self.device)
+        
+        return output
