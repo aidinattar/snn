@@ -21,7 +21,8 @@ class ResSNN(NetworkTrainer):
     """Implementation of a deep convolutional SNN
     that uses R-STDP for learning and a skip connection"""
 
-    def __init__(self, num_classes=10, device="cuda", tensorboard=False):
+    def __init__(self, num_classes=10, device="cuda", tensorboard=False, method="logical_and"):
+
         super(ResSNN, self).__init__(num_classes=num_classes, device=device, tensorboard=tensorboard)
 
         self.block1 = nn.ModuleDict({
@@ -142,6 +143,8 @@ class ResSNN(NetworkTrainer):
         self.max_ap = Parameter(torch.Tensor([0.15]))
         self.to(device)
         # self.file = open("log_new.txt", "w")
+        assert method in ["logical_and", "logical_or", "add", "first_spike"], "Invalid method"
+        self.method = method
 
     def forward(self, input, max_layer = 4):
         """
@@ -183,8 +186,16 @@ class ResSNN(NetworkTrainer):
             
             # Skip connection
             spk_skip = nn.functional.interpolate(spk_skip, size=spk.shape[2:], mode='bilinear', align_corners=False)
-            spk = torch.logical_and(spk, spk_skip).float()
-
+            if self.method == "logical_and":
+                spk = torch.logical_and(spk, spk_skip).float()
+            elif self.method == "logical_or":
+                spk = torch.logical_or(spk, spk_skip).float()
+            elif self.method == "add":
+                spk = torch.add(spk, spk_skip).float()
+            elif self.method == "first_spike":
+                spk = torch.add(spk, spk_skip).float()
+                cumsum = torch.cumsum(spk, dim=0)
+                spk[cumsum > 1] = 0
             del spk_skip
 
             if max_layer == 3:
@@ -233,8 +244,16 @@ class ResSNN(NetworkTrainer):
 
         # Skip connection
         spk_skip = nn.functional.interpolate(spk_skip, size=spk.shape[2:], mode='bilinear', align_corners=False)
-        spk = torch.logical_and(spk, spk_skip).float()
-
+        if self.method == "logical_and":
+            spk = torch.logical_and(spk, spk_skip).float()
+        elif self.method == "logical_or":
+            spk = torch.logical_or(spk, spk_skip).float()
+        elif self.method == "add":
+            spk = torch.add(spk, spk_skip).float()
+        elif self.method == "first_spike":
+            spk = torch.add(spk, spk_skip).float()
+            cumsum = torch.cumsum(spk, dim=0)
+            spk[cumsum > 1] = 0
         del spk_skip
 
         if max_layer == 3:
