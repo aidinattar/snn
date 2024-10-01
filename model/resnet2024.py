@@ -10,18 +10,20 @@
 # Python version:   3.11.7                                                     #
 ################################################################################
 
+import gc
 import torch
 import torch.nn as nn
 import SpykeTorch.functional as sf
 from network_trainer import NetworkTrainer
 from SpykeTorch import snn
 from torch.nn.parameter import Parameter
+from utils import memory_usage
 
 class ResSNN(NetworkTrainer):
     """Implementation of a deep convolutional SNN
     that uses R-STDP for learning and a skip connection"""
 
-    def __init__(self, num_classes=10, device="cuda", tensorboard=False, method="logical_and"):
+    def __init__(self, num_classes=10, device="cuda", tensorboard=False, method="first_spike"):
 
         super(ResSNN, self).__init__(num_classes=num_classes, device=device, tensorboard=tensorboard)
 
@@ -162,54 +164,93 @@ class ResSNN(NetworkTrainer):
         torch.Tensor
             Output of the network
         """
-        # Pad the input to avoid edge effects
-        input = sf.pad(input.float(), (2, 2, 2, 2), 0)
-        if self.training:
-            pot = self.block1['conv'](input)
-            spk, pot = sf.fire(pot, self.block1_params['threshold'], True)
-            if max_layer == 1:
-                self.update_layer1(input, pot)
-                return spk, pot
+        with torch.cuda.amp.autocast():
+            # Pad the input to avoid edge effects
+            input = sf.pad(input.float(), (2, 2, 2, 2), 0)
+            if self.training:
+                pot = self.block1['conv'](input)
+                spk, pot = sf.fire(pot, self.block1_params['threshold'], True)
+                if max_layer == 1:
+                    self.update_layer1(input, pot)
+                    return spk, pot
 
-            spk_in = sf.pad(sf.pooling(spk, 2, 2), (1, 1, 1, 1))
-            pot = self.block2['conv'](spk_in)
-            spk, pot = sf.fire(pot, self.block2_params['threshold'], True)
-            if max_layer == 2:
-                self.update_layer2(spk_in, pot)
-                return spk, pot
-            
-            spk_skip = self.skip_connection(spk)
+                spk_in = sf.pad(sf.pooling(spk, 2, 2), (1, 1, 1, 1))
+                pot = self.block2['conv'](spk_in)
+                spk, pot = sf.fire(pot, self.block2_params['threshold'], True)
+                if max_layer == 2:
+                    self.update_layer2(spk_in, pot)
+                    return spk, pot
 
-            spk_in = sf.pad(sf.pooling(spk, 2, 2), (1, 1, 1, 1))
-            pot = self.block3['conv'](spk_in)
-            spk, pot = sf.fire(pot, self.block3_params['threshold'], True)
-            
-            # Skip connection
-            spk_skip = nn.functional.interpolate(spk_skip, size=spk.shape[2:], mode='bilinear', align_corners=False)
-            if self.method == "logical_and":
-                spk = torch.logical_and(spk, spk_skip).float()
-            elif self.method == "logical_or":
-                spk = torch.logical_or(spk, spk_skip).float()
-            elif self.method == "add":
-                spk = torch.add(spk, spk_skip).float()
-            elif self.method == "first_spike":
-                spk = torch.add(spk, spk_skip).float()
-                cumsum = torch.cumsum(spk, dim=0)
-                spk[cumsum > 1] = 0
-            del spk_skip
+                # print(f"Before skip: {torch.cuda.memory_summary(device=self.device)}")
+                # print(f"Before skip: ")
+                # memory_usage()
 
-            if max_layer == 3:
-                self.update_layer3(spk_in, pot)
-                return spk, pot
+                if max_layer > 3:
+                    with torch.no_grad():
+                        # spk_skip_temp = self.skip_connection(spk).sign()
+                        spk_skip = nn.functional.interpolate(
+                            self.skip_connection(spk).sign(), size=(7, 7), mode='bilinear', align_corners=False
+                        ).sign()
 
-            spk_in = sf.pad(sf.pooling(spk, 3, 3), (2, 2, 2, 2))
-            pot = self.block4['conv'](spk_in)
-            spk = sf.fire(pot)
-            winners = sf.get_k_winners(pot, 1, 0, spk)
-            self.update_ctx(spk_in, pot, spk, winners)
-            return self.get_output(winners)
-        else:
-            return self.forward_eval(input, max_layer)
+                # print(f"After skip: ")
+                # memory_usage()
+                # print(f"After skip: {torch.cuda.memory_summary(device=self.device)}")
+
+                spk_in = sf.pad(sf.pooling(spk, 2, 2), (1, 1, 1, 1))
+                pot = self.block3['conv'](spk_in)
+                spk, pot = sf.fire(pot, self.block3_params['threshold'], True)
+
+                if max_layer == 3:
+                    self.update_layer3(spk_in, pot)
+                    return spk, pot
+
+                # print(f"Before concat: {torch.cuda.memory_summary(device=self.device)}")
+                # print(f"Before concat: ")
+                # memory_usage()
+
+                # Skip connection
+                # with torch.no_grad():
+                #     spk_skip = nn.functional.interpolate(spk_skip_temp, size=spk.shape[2:], mode='bilinear', align_corners=False).sign()
+                    # spk = nn.functional.interpolate(spk, size=spk_skip.shape[2:], mode='bilinear', align_corners=False).sign()
+                # del spk_skip_temp
+                torch.cuda.empty_cache()
+
+                # print(f"After interp: {torch.cuda.memory_summary(device=self.device)}")
+                # print(f"After interp: ")
+                # memory_usage()
+
+                if self.method == "logical_and":
+                    spk = torch.logical_and(spk, spk_skip).float()
+                elif self.method == "logical_or":
+                    spk = torch.logical_or(spk, spk_skip).float()
+                elif self.method == "add":
+                    spk = torch.add(spk, spk_skip)
+                elif self.method == "first_spike":
+                    # spk = torch.add(spk, spk_skip)
+                    spk = torch.logical_or(spk, spk_skip).float()
+                    cumsum = torch.cumsum(spk, dim=0)
+                    spk[cumsum > 1] = 0
+                    del cumsum
+
+                del spk_skip
+                torch.cuda.empty_cache()
+
+                # print(f"After concat: {torch.cuda.memory_summary(device=self.device)}")
+                # print(f"After concat: ")
+                # memory_usage()
+
+                gc.collect()
+                # print(f"After gc: ")
+                # memory_usage()
+
+                spk_in = sf.pad(sf.pooling(spk, 3, 3), (2, 2, 2, 2))
+                pot = self.block4['conv'](spk_in)
+                spk = sf.fire(pot)
+                winners = sf.get_k_winners(pot, 1, 0, spk)
+                self.update_ctx(spk_in, pot, spk, winners)
+                return self.get_output(winners)
+            else:
+                return self.forward_eval(input, max_layer)
 
     def forward_eval(self, input, max_layer):
         """
@@ -237,13 +278,17 @@ class ResSNN(NetworkTrainer):
         if max_layer == 2:
             return spk, pot
 
-        spk_skip = self.skip_connection(spk)
+        with torch.no_grad():
+            spk_skip = self.skip_connection(spk).sign()
 
         pot = self.block3['conv'](sf.pad(sf.pooling(spk, 2, 2), (1, 1, 1, 1)))
         spk, pot = sf.fire(pot, self.block3_params['threshold'], True)
 
+        if max_layer == 3:
+            return spk, pot
+
         # Skip connection
-        spk_skip = nn.functional.interpolate(spk_skip, size=spk.shape[2:], mode='bilinear', align_corners=False)
+        spk_skip = nn.functional.interpolate(spk_skip, size=spk.shape[2:], mode='bilinear', align_corners=False).sign()
         if self.method == "logical_and":
             spk = torch.logical_and(spk, spk_skip).float()
         elif self.method == "logical_or":
@@ -255,9 +300,7 @@ class ResSNN(NetworkTrainer):
             cumsum = torch.cumsum(spk, dim=0)
             spk[cumsum > 1] = 0
         del spk_skip
-
-        if max_layer == 3:
-            return spk, pot
+        torch.cuda.empty_cache()
 
         pot = self.block4['conv'](sf.pad(sf.pooling(spk, 3, 3), (2, 2, 2, 2)))
         spk = sf.fire(pot)
