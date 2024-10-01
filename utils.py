@@ -11,6 +11,7 @@
 
 import os
 import torch
+import psutil
 import struct
 import datetime
 import numpy as np
@@ -269,12 +270,16 @@ def prepare_data(dataset, batch_size):
     train_loader = torch.utils.data.DataLoader(
         train_data,
         batch_size = batch_size,
-        shuffle = False
+        shuffle = False,
+        num_workers = 4,
+        pin_memory = True
     )
     test_loader = torch.utils.data.DataLoader(
         test_data,
         batch_size = len(test_data),
-        shuffle = False
+        shuffle = False,
+        num_workers = 4,
+        pin_memory = True
     )
     metrics_data = torch.utils.data.Subset(
         test_data,
@@ -283,7 +288,9 @@ def prepare_data(dataset, batch_size):
     metrics_loader = torch.utils.data.DataLoader(
         metrics_data,
         batch_size = len(metrics_data),
-        shuffle = False
+        shuffle = False,
+        num_workers = 4,
+        pin_memory = True
     )
     return train_loader, test_loader, metrics_loader, num_classes
 
@@ -398,3 +405,8 @@ class SmallNORBDataset:
 def generate_norb_dataset(train_size, test_size, dataset_root, export_dir):
     dataset = SmallNORBDataset(dataset_root)
     dataset.export_to_jpg(export_dir, train_size, test_size)
+
+
+def memory_usage():
+    process = psutil.Process(os.getpid())
+    print(f"Memory usage: {process.memory_info().rss / 1024**2:.2f} MB")  # RSS = Resident Set Size (RAM usage)

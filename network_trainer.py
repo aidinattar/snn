@@ -10,6 +10,8 @@
 ################################################################################
 
 import os
+import gc
+import utils
 import torch
 import torchvision
 import numpy as np
@@ -82,6 +84,8 @@ class NetworkTrainer(nn.Module):
             data_in = data_in.to(self.device)
             self(data_in, layer_idx)
             self.stdp(layer_idx)
+            # gc.collect()
+            torch.cuda.empty_cache()
 
     def train_rl(self, data, target, layer_idx=3):
         """
@@ -108,7 +112,7 @@ class NetworkTrainer(nn.Module):
             data_in = data_in.to(self.device)
             target_in = target_in.to(self.device)
             d = self(data_in, layer_idx)
-            
+
             if d != -1:
                 if d == target_in:
                     perf[0] += 1
@@ -118,6 +122,9 @@ class NetworkTrainer(nn.Module):
                     self.punish()
             else:
                 perf[2] += 1
+
+            
+            utils.memory_usage()
         
         avg_loss = perf[1] / (perf[0] + perf[1] + perf[2])
         accuracy = perf[0] / (perf[0] + perf[1] + perf[2])

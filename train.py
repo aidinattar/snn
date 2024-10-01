@@ -21,6 +21,7 @@ from model.deepr2024 import DeepRSNN, DeepRSNN2
 from model.inception2024 import InceptionSNN
 from model.majority2024 import MajoritySNN
 from model.resnet2024 import ResSNN
+from model.deeper2024 import DeeperSNN
 
 # Set random seed for reproducibility
 torch.manual_seed(42)
@@ -28,12 +29,13 @@ torch.manual_seed(42)
 def main():
     # Parse command line arguments
     parser = argparse.ArgumentParser(description="Train the model")
-    parser.add_argument("--model", type=str, default="mozafari2018", help="Model to use")
+    parser.add_argument("--model", type=str, default="mozafari2018", help="Model to use", choices=["mozafari2018", "deep2024", "deepr2024", "deepr2024_2", "inception2024", "majority2024", "resnet2024", "deeper2024"])
     parser.add_argument("--dataset", type=str, default="mnist", help="Dataset to use")
     parser.add_argument("--epochs", type=int, nargs='+', default=[2, 4, 100], help="Number of epochs to train each layer")
     parser.add_argument("--batch_size", type=int, default=1000, help="Batch size for the data loader")
     parser.add_argument("--device", type=str, default="cuda", help="Device to use for training")
     parser.add_argument("--tensorboard", action="store_true", default=False, help="Enable TensorBoard logging")
+    parser.add_argument("--debug", action="store_true", default=False, help="Enable debug mode")
     args = parser.parse_args()
 
     # Print the command line arguments
@@ -78,17 +80,22 @@ def main():
         model = ResSNN(num_classes=num_classes, device=args.device, tensorboard=args.tensorboard)
         epochs = args.epochs[3]
         max_layers = 4
+    elif args.model == "deeper2024":
+        model = DeeperSNN(num_classes=num_classes, device=args.device, tensorboard=args.tensorboard)
+        epochs = args.epochs[4]
+        max_layers = 5
     else:
         raise ValueError(f"Unknown model: {args.model}")
 
     # Move the model to the appropriate device
     model.to(args.device)
 
-    # # Check if the model is on CUDA
-    # if utils.is_model_on_cuda(model):
-    #     print("Model is on CUDA")
-    # else:
-    #     print("Model is not on CUDA")
+    if args.debug:
+        # Check if the model is on CUDA
+        if utils.is_model_on_cuda(model):
+            print("Model is on CUDA")
+        else:
+            print("Model is not on CUDA")
 
     # Register hooks for activation maps
     model.register_hooks()
@@ -137,7 +144,7 @@ def main():
         # save model
         torch.save(model.state_dict(), f"models/{args.model}_{args.dataset}_second_layer.pth")
 
-    if args.model in ["deep2024", "deepr2024", "deepr2024_2", 'resnet2024']:
+    if args.model in ["deep2024", "deepr2024", "deepr2024_2", 'resnet2024', 'deeper2024']:
         # third layer
         if os.path.isfile(f"models/{args.model}_{args.dataset}_third_layer.pth"):
             print("Loading third layer model")
@@ -178,6 +185,26 @@ def main():
             # save model
             torch.save(model.state_dict(), f"models/{args.model}_{args.dataset}_third_layer.pth")
 
+    if args.model in ["deeper2024"]:
+        # fourth layer
+        if os.path.isfile(f"models/{args.model}_{args.dataset}_fourth_layer.pth"):
+            print("Loading fourth layer model")
+            model.load_state_dict(
+                torch.load(f"models/{args.model}_{args.dataset}_fourth_layer.pth"),
+                strict = False
+            )
+        else:
+            iterator = tqdm(range(args.epochs[3]), desc="Training Fourth Layer")
+            for epoch in iterator:
+                i = 0
+                for data, _ in train_loader:
+                    data = data.to(args.device)
+                    model.train_unsupervised(data, layer_idx=4)
+                    iterator.set_postfix({"Iteration": i+1})
+                    i += 1
+            # save model
+            torch.save(model.state_dict(), f"models/{args.model}_{args.dataset}_fourth_layer.pth")
+
     # # Log initial embeddings
     # embeddings, metadata, label_img = utils.get_embeddings_metadata(model, train_loader, args.device, max_layers)
     # model.writer.add_embedding(embeddings, metadata, label_img, global_step=0, tag='Embeddings')
@@ -211,6 +238,11 @@ def main():
         anr3_3 = model.block3_3['stdp'].learning_rate[0][1].item()
         app3_3 = model.block3_3['anti_stdp'].learning_rate[0][1].item()
         anp3_3 = model.block3_3['anti_stdp'].learning_rate[0][0].item()
+    if args.model in ["deeper2024"]:
+        apr5 = model.block5['stdp'].learning_rate[0][0].item()
+        anr5 = model.block5['stdp'].learning_rate[0][1].item()
+        app5 = model.block5['anti_stdp'].learning_rate[0][1].item()
+        anp5 = model.block5['anti_stdp'].learning_rate[0][0].item()
 
     # performance
     best_train = np.array([0., 0., 0., 0.]) # correct, total, loss, epoch
@@ -228,8 +260,11 @@ def main():
             for k, (data, targets) in enumerate(train_loader):
                 # if k == 0:
                 #     model.log_inputs(data, epoch)
+
+                print("###################NEW BATCH###################")
                 
                 perf_train_batch = model.train_rl(data, targets, layer_idx=max_layers)
+                utils.memory_usage()
                 iterator.set_postfix({"Iteration": i+1, "Performance": perf_train_batch})
                 
                 if args.model in ["mozafari2018", "deepr2024", "deepr2024_2"]:
@@ -258,6 +293,21 @@ def main():
                         anti_stdp_an = anp_adapt4,
                         layer_idx = 4
                     )
+
+                if args.model in ["deeper2024"]:
+                    apr_adapt5 = apr5 * (perf_train_batch[1] * adaptive_int + adaptive_min)
+                    anr_adapt5 = anr5 * (perf_train_batch[1] * adaptive_int + adaptive_min)
+                    app_adapt5 = app5 * (perf_train_batch[0] * adaptive_int + adaptive_min)
+                    anp_adapt5 = anp5 * (perf_train_batch[0] * adaptive_int + adaptive_min)
+
+                    model.update_learning_rates(
+                        stdp_ap = apr_adapt5,
+                        stdp_an = anr_adapt5,
+                        anti_stdp_ap = app_adapt5,
+                        anti_stdp_an = anp_adapt5,
+                        layer_idx = 5
+                    )
+
                 if args.model in ["majority2024"]:
                     apr_adapt3_1 = apr3_1 * (perf_train_batch[1] * adaptive_int + adaptive_min)
                     anr_adapt3_1 = anr3_1 * (perf_train_batch[1] * adaptive_int + adaptive_min)
