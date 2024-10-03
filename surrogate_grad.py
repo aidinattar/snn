@@ -1,8 +1,22 @@
+################################################################################
+# Title:            surrogat_grad.py                                           #
+# Description:      This is the training script for the model trained with     #
+#                   surrogate gradient                                         #
+# Author:           Aidin Attar                                                #
+# Date:             2024-09-15                                                 #
+# Version:          0.2                                                        #
+# Usage:            python surrogat_grad.py                                    #
+# Notes:                                                                       #
+# Python version:   3.11.7                                                     #
+################################################################################
+
+# %%
 import os
 import torch
 import argparse
 import torch.nn as nn
 import snntorch as snn
+import matplotlib.pyplot as plt
 from snntorch import spikeplot as splt
 from snntorch import surrogate
 from snntorch import functional as SF
@@ -11,11 +25,12 @@ from torch.utils.data import DataLoader
 from torchvision import datasets, transforms
 from tqdm import tqdm
 import torch.nn.functional as F
+from sklearn.metrics import confusion_matrix, f1_score, accuracy_score, recall_score, precision_score
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' # Suppress TensorFlow logging
 from torch.utils.tensorboard import SummaryWriter
 
-
+# %%
 class SNN(nn.Module):
     """
     Parent class for Spiking Neural Network models.
@@ -43,8 +58,54 @@ class SNN(nn.Module):
         # Save the model to the specified path if the accuracy is better than the previous best
         if not os.path.isfile(path) or acc > torch.load(path):
             torch.save(acc, path)
-        
 
+    def metrics(self, test_loader, device, num_steps):
+        self.all_targets = []
+        self.all_preds = []
+
+        # Iterate over the testing dataset
+        for inputs, targets in tqdm(test_loader, desc="Testing", leave=False):
+            # Move the data to the specified device
+            inputs, targets = inputs.to(device), targets.to(device)
+
+            # Forward pass
+            outputs, _ = forward_pass(self, inputs, num_steps)
+            outputs = outputs.sum(0)
+
+            # Compute the predictions
+            _, preds = torch.max(outputs, 1)
+
+            # Append the targets and predictions
+            self.all_targets.extend(targets.cpu().numpy())
+            self.all_preds.extend(preds.cpu().numpy())
+
+        # Compute evaluation metrics
+        metrics = {
+            "confusion_matrix": confusion_matrix(self.all_targets, self.all_preds),
+            "f1_score": f1_score(self.all_targets, self.all_preds, average='macro'),
+            "accuracy": accuracy_score(self.all_targets, self.all_preds),
+            "recall": recall_score(self.all_targets, self.all_preds, average='macro'),
+            "precision": precision_score(self.all_targets, self.all_preds, average='macro'),
+        }
+        return metrics
+
+    def log_metrics(self, writer, epoch, test_loader, device, num_steps):
+        # Log the evaluation metrics
+        metrics = self.metrics(test_loader, device, num_steps)
+        writer.add_scalar("Metrics/F1Score", metrics["f1_score"], epoch)
+        writer.add_scalar("Metrics/Accuracy", metrics["accuracy"], epoch)
+        writer.add_scalar("Metrics/Recall", metrics["recall"], epoch)
+        writer.add_scalar("Metrics/Precision", metrics["precision"], epoch)
+
+        fig, ax = plt.subplots()
+        cax = ax.matshow(metrics["confusion_matrix"], cmap='viridis')
+        fig.colorbar(cax)
+        plt.xlabel('Predicted')
+        plt.ylabel('True')
+        plt.title('Confusion Matrix')
+        writer.add_figure("Metrics/ConfusionMatrix", fig, epoch)
+        
+# %%
 class fcSNN(SNN):
     """
     Fully connected Spiking Neural Network model using surrogate gradient.
@@ -71,12 +132,12 @@ class fcSNN(SNN):
 
         return spk2, mem2
 
-
+# %%
 class ConvSNN(SNN):
     """
     Convolutional Spiking Neural Network model using surrogate gradient.
     """
-    def __init__(self, beta, spike_grad, kernel_size, n_filters):
+    def __init__(self, beta, spike_grad, kernel_size):
         super().__init__()
 
         # Initialize layers
@@ -104,7 +165,7 @@ class ConvSNN(SNN):
 
         return spk3, mem3
 
-
+# %%
 def forward_pass(model, data, num_steps):
     """
     Perform a forward pass through the network.
@@ -122,7 +183,7 @@ def forward_pass(model, data, num_steps):
 
     return torch.stack(spk_rec), torch.stack(mem_rec)
 
-
+# %%
 def batch_accuracy(train_loader, net, num_steps, device):
     with torch.no_grad():
         total = 0
@@ -141,7 +202,7 @@ def batch_accuracy(train_loader, net, num_steps, device):
 
     return acc/total
 
-
+# %%
 def load_data(batch_size, dataset):
     """
     Load the specified dataset using PyTorch DataLoader.
@@ -168,7 +229,7 @@ def load_data(batch_size, dataset):
 
     return train_loader, test_loader
 
-
+# %%
 def train(model, train_loader, optimizer, loss_fn, num_steps, device, writer = None, epoch = 0):
     """
     Train the model on the training dataset.
@@ -181,6 +242,7 @@ def train(model, train_loader, optimizer, loss_fn, num_steps, device, writer = N
     total_correct = 0
 
     batch_idx = 0
+    counter = 0
 
     # Iterate over the training dataset
     for inputs, targets in tqdm(train_loader, desc="Training", leave=False):
@@ -201,7 +263,7 @@ def train(model, train_loader, optimizer, loss_fn, num_steps, device, writer = N
 
         # Compute the loss and accuracy
         batch_loss = loss.item()
-        batch_correct = SF.accuracy_rate(outputs, targets) * inputs.size(0)
+        batch_correct = SF.accuracy_rate(outputs, targets) * outputs.size(1)
         total_loss += batch_loss
         total_correct += batch_correct
 
@@ -214,7 +276,7 @@ def train(model, train_loader, optimizer, loss_fn, num_steps, device, writer = N
 
     return total_loss / len(train_loader), total_correct / len(train_loader.dataset)
 
-
+# %%
 def test(model, test_loader, loss_fn, num_steps, device, writer = None, epoch = 0):
     """
     Test the model on the testing dataset.
@@ -240,7 +302,7 @@ def test(model, test_loader, loss_fn, num_steps, device, writer = None, epoch = 
 
             # Compute the loss and accuracy
             batch_loss = loss.item()
-            batch_correct = SF.accuracy_rate(outputs, targets) * inputs.size(0)
+            batch_correct = SF.accuracy_rate(outputs, targets) * outputs.size(1)
             total_loss += batch_loss
             total_correct += batch_correct
             
@@ -254,34 +316,49 @@ def test(model, test_loader, loss_fn, num_steps, device, writer = None, epoch = 
 
     return total_loss / len(test_loader), total_correct / len(test_loader.dataset)
 
-
+# %%
 def plot_spikes_weights(model, device, test_loader):
     """
-    Plot the spikes and weights of the network.
+    Plot the spikes and weights of the network using snnTorch.
     """
-    # Set the model to evaluation
     model.eval()
-
-    # Initialize the spikes and weights
     spikes = []
     weights = []
 
-    # Disable gradient computation
     with torch.no_grad():
-        # Iterate over the testing dataset
         for inputs, _ in tqdm(test_loader, desc="Plotting", leave=False):
-            # Move the data to the specified device
             inputs = inputs.to(device)
+            
+            # Forward pass through the model
+            spk4 = model(inputs)
+            
+            # Collect spikes
+            spikes.append([
+                model.lif1.mem.cpu().numpy(),
+                model.lif2.mem.cpu().numpy(),
+                model.lif3.mem.cpu().numpy(),
+            ])
 
-            # Forward pass
-            model(inputs)
-            spikes.append([model.conv1.spk.cpu().numpy(), model.conv2.spk.cpu().numpy(), model.fc1.spk.cpu().numpy(), model.fc2.spk.cpu().numpy()])
-            weights.append([model.conv1.weight.cpu().numpy(), model.conv2.weight.cpu().numpy(), model.fc1.weight.cpu().numpy(), model.fc2.weight.cpu().numpy()])
+            # Collect weights
+            weights.append([
+                model.conv1.weight.cpu().numpy(),
+                model.conv2.weight.cpu().numpy(),
+                model.fc1.weight.cpu().numpy(),
+            ])
 
-    # Plot the spikes and weights of the network
-    model.plot(spikes, weights)
+    # Plot spikes using snnTorch's spikeplot utilities
+    splt.plot_spikes(spikes)
+    plt.show()
 
+    # Plot weights manually using matplotlib
+    plt.figure(figsize=(10, 5))
+    for idx, weight in enumerate(weights[0]):
+        plt.subplot(1, len(weights[0]), idx + 1)
+        plt.imshow(weight)
+        plt.title(f"Layer {idx + 1} Weights")
+    plt.show()
 
+# %%
 def main():
     # Define the parser
     parser = argparse.ArgumentParser(description="Train a spiking neural network on the MNIST dataset.")
@@ -291,7 +368,7 @@ def main():
     parser.add_argument("--optimizer", type=str, default="adam", help="Optimizer to use for training.")
     parser.add_argument("--loss_fn", type=str, default="crossentropy", help="Loss function to use for training.")
     parser.add_argument("--weight_decay", type=float, default=0, help="Weight decay for the optimizer.")
-    parser.add_argument("--beta", type=float, default=0.9, help="Beta value for the LIF neuron.")
+    parser.add_argument("--beta", type=float, default=0.5, help="Beta value for the LIF neuron.")
     parser.add_argument("--spike_grad", type=str, default="fast_sigmoid", help="Spike gradient to use for training.")
     parser.add_argument("--dropout", type=float, default=0.2, help="Dropout rate for the network.")
     parser.add_argument("--kernel_size", type=int, default=5, help="Kernel size for the convolutional layers.")
@@ -302,6 +379,7 @@ def main():
     parser.add_argument("--log_dir", type=str, default="runs_surrogate", help="Directory to save logs to.")
     parser.add_argument("--save_dir", type=str, default="saves", help="Directory to save model checkpoints to.")
     parser.add_argument("--plot", action="store_true", help="Plot the spikes and weights of the network.")
+    parser.add_argument("--metrics", action="store_true", help="Compute the metrics at the end of the epoch.")
     parser.add_argument("--seed", type=int, default=42, help="Random seed to use for reproducibility.")
     parser.add_argument("--dataset", type=str, default="mnist", help="Dataset to use for training.")
     parser.add_argument("--model", type=str, default="fcsnn", help="Model to use for training.")
@@ -319,12 +397,14 @@ def main():
         print(f"\t{arg}: {getattr(args, arg)}")
     print("############################################")
 
+    # %%
     if not os.path.isdir("models"):
         os.mkdir("models")
 
     # Load the data
     train_loader, test_loader = load_data(args.batch_size, args.dataset)
 
+    # %%
     if args.spike_grad == "fast_sigmoid":
         spike_grad = surrogate.fast_sigmoid(slope=25)
     elif args.spike_grad == "atan":
@@ -334,17 +414,20 @@ def main():
     else:
         raise ValueError("Invalid spike gradient specified. Please use 'fast_sigmoid', 'atan', or 'heaviside'.")
 
+    # %%
     # Define the network
     if args.model == "fcsnn":
         model = fcSNN(args.beta, spike_grad, 28*28, args.n_hidden, args.n_out)
     elif args.model == "convsnn":
-        model = ConvSNN(args.beta, spike_grad, args.kernel_size, args.n_filters)
+        model = ConvSNN(args.beta, spike_grad, args.kernel_size)
     else:
         raise ValueError("Invalid model specified. Please use 'snn'.")
     
+    # %%
     # Move the model to the specified device
     model.to(args.device)
 
+    # %%
     # Define the optimizer
     if args.optimizer == "adam":
         optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
@@ -353,12 +436,14 @@ def main():
     else:
         raise ValueError("Invalid optimizer specified. Please use 'adam' or 'sgd'.")
     
+    # %%
     # Define the loss function
     if args.loss_fn == "crossentropy":
         loss_fn = SF.ce_rate_loss()
     else:
         raise ValueError("Invalid loss function specified. Please use 'crossentropy'.")
     
+    # %%
     # Define the learning rate scheduler
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode="min", factor=0.5, patience=5)
 
@@ -375,6 +460,7 @@ def main():
     # scripted_model = torch.jit.script(model)
     # writer.add_graph(scripted_model, next(iter(train_loader))[0].to(args.device))
 
+    # %%
     # Train the model
     iterator = tqdm(range(args.epochs), desc="Epoch")
     for epoch in iterator:
@@ -383,6 +469,10 @@ def main():
 
         # Test the model
         test_loss, test_acc = test(model, test_loader, loss_fn, args.num_steps, args.device, writer, epoch)
+
+        # Compute the metrics and log them in tensorboard
+        if args.metrics and writer is not None:
+            model.log_metrics(writer, epoch, test_loader, args.device, args.num_steps)
 
         # Update the learning rate
         scheduler.step(test_loss)
@@ -404,7 +494,7 @@ def main():
 
     # Plot the spikes and weights of the network
     if args.plot:
-        plot_spikes_weights(model, args.device)
+        plot_spikes_weights(model, args.device, test_loader)
 
     # Close the TensorBoard writer
     writer.close()
