@@ -260,11 +260,9 @@ def main():
             for k, (data, targets) in enumerate(train_loader):
                 # if k == 0:
                 #     model.log_inputs(data, epoch)
-
-                print("###################NEW BATCH###################")
                 
                 perf_train_batch = model.train_rl(data, targets, layer_idx=max_layers)
-                utils.memory_usage()
+                # utils.memory_usage()
                 iterator.set_postfix({"Iteration": i+1, "Performance": perf_train_batch})
                 
                 if args.model in ["mozafari2018", "deepr2024", "deepr2024_2"]:

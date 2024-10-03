@@ -17,6 +17,7 @@ import torchvision
 import numpy as np
 import torch.nn as nn
 import matplotlib.pyplot as plt
+from tqdm import tqdm
 from sklearn.metrics import confusion_matrix, f1_score, accuracy_score, recall_score, precision_score
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' # Suppress TensorFlow logging
@@ -80,12 +81,15 @@ class NetworkTrainer(nn.Module):
             Index of the layer to train
         """
         self.train()
-        for data_in in data:
+
+        iterator = tqdm(data, total=len(data), desc=f"Epoch {self.epoch}", position=1, leave=False)
+        for data_in in iterator:
             data_in = data_in.to(self.device)
             self(data_in, layer_idx)
             self.stdp(layer_idx)
             # gc.collect()
             torch.cuda.empty_cache()
+            iterator.set_postfix(layer=layer_idx)
 
     def train_rl(self, data, target, layer_idx=3):
         """
@@ -108,7 +112,8 @@ class NetworkTrainer(nn.Module):
         self.train()
         perf = np.array([0, 0, 0])  # correct, wrong, silence
         
-        for data_in, target_in in zip(data, target):
+        iterator = tqdm(zip(data, target), total=len(data), desc=f"Epoch {self.epoch}", position=1, leave=False)
+        for data_in, target_in in iterator:
             data_in = data_in.to(self.device)
             target_in = target_in.to(self.device)
             d = self(data_in, layer_idx)
@@ -122,9 +127,9 @@ class NetworkTrainer(nn.Module):
                     self.punish()
             else:
                 perf[2] += 1
-
             
-            utils.memory_usage()
+            iterator.set_postfix(silence=perf[0], wrong=perf[1], correct=perf[2])
+            # utils.memory_usage()
         
         avg_loss = perf[1] / (perf[0] + perf[1] + perf[2])
         accuracy = perf[0] / (perf[0] + perf[1] + perf[2])

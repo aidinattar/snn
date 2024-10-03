@@ -64,7 +64,7 @@ class ResSNN(NetworkTrainer):
             'conv': snn.Convolution(
                 in_channels=250,
                 out_channels=200,
-                kernel_size=5,
+                kernel_size=4,
                 weight_mean=0.8,
                 weight_std=0.05
             ),
@@ -187,10 +187,10 @@ class ResSNN(NetworkTrainer):
 
                 if max_layer > 3:
                     with torch.no_grad():
-                        # spk_skip_temp = self.skip_connection(spk).sign()
-                        spk_skip = nn.functional.interpolate(
-                            self.skip_connection(spk).sign(), size=(7, 7), mode='bilinear', align_corners=False
-                        ).sign()
+                        spk_skip_temp = self.skip_connection(spk).sign()
+                        # spk_skip = nn.functional.interpolate(
+                        #     self.skip_connection(spk).sign(), size=(7, 7), mode='bilinear', align_corners=False
+                        # ).sign()
 
                 # print(f"After skip: ")
                 # memory_usage()
@@ -209,10 +209,10 @@ class ResSNN(NetworkTrainer):
                 # memory_usage()
 
                 # Skip connection
-                # with torch.no_grad():
-                #     spk_skip = nn.functional.interpolate(spk_skip_temp, size=spk.shape[2:], mode='bilinear', align_corners=False).sign()
+                with torch.no_grad():
+                    spk_skip = nn.functional.interpolate(spk_skip_temp, size=spk.shape[2:], mode='bilinear', align_corners=False).sign()
                     # spk = nn.functional.interpolate(spk, size=spk_skip.shape[2:], mode='bilinear', align_corners=False).sign()
-                # del spk_skip_temp
+                del spk_skip_temp
                 torch.cuda.empty_cache()
 
                 # print(f"After interp: {torch.cuda.memory_summary(device=self.device)}")
