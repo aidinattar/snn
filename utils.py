@@ -406,7 +406,29 @@ def generate_norb_dataset(train_size, test_size, dataset_root, export_dir):
     dataset = SmallNORBDataset(dataset_root)
     dataset.export_to_jpg(export_dir, train_size, test_size)
 
-
 def memory_usage():
     process = psutil.Process(os.getpid())
     print(f"Memory usage: {process.memory_info().rss / 1024**2:.2f} MB")  # RSS = Resident Set Size (RAM usage)
+
+class PoissonSpikeEncoding:
+    def __init__(self, timesteps=100, max_rate=20):
+        self.timesteps = timesteps
+        self.max_rate = max_rate
+
+    def __call__(self, image):
+        image = image.float() / 255.0  # Normalize pixel values
+        spike_prob = image * self.max_rate / 1000.0
+        spikes = torch.rand((self.timesteps, *image.shape)) < spike_prob.unsqueeze(0)
+        return spikes.float()
+
+class LatencyEncoding:
+    def __init__(self, timesteps=100):
+        self.timesteps = timesteps
+
+    def __call__(self, image):
+        image = image.float() / 255.0
+        spike_times = (1 - image) * (self.timesteps - 1)
+        spikes = torch.zeros((self.timesteps, *image.shape))
+        for t in range(self.timesteps):
+            spikes[t][spike_times <= t] = 1
+        return spikes.float()
