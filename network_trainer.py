@@ -128,7 +128,7 @@ class NetworkTrainer(nn.Module):
             else:
                 perf[2] += 1
             
-            iterator.set_postfix(silence=perf[0], wrong=perf[1], correct=perf[2])
+            iterator.set_postfix(correct=perf[0], wrong=perf[1], silence=perf[2])
             # utils.memory_usage()
         
         avg_loss = perf[1] / (perf[0] + perf[1] + perf[2])

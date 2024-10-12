@@ -68,28 +68,28 @@ class MozafariMNIST2018(NetworkTrainer):
         }
 
         self.block1['stdp'] = snn.STDP(
-            conv_layer=self.block1['conv'],
+            layer=self.block1['conv'],
             learning_rate=(0.004, -0.003),
             use_stabilizer=True,
             lower_bound=0,
             upper_bound=1
         )
         self.block2['stdp'] = snn.STDP(
-            conv_layer=self.block2['conv'],
+            layer=self.block2['conv'],
             learning_rate=(0.004, -0.003),
             use_stabilizer=True,
             lower_bound=0,
             upper_bound=1
         )
         self.block3['stdp'] = snn.STDP(
-            conv_layer=self.block3['conv'],
+            layer=self.block3['conv'],
             learning_rate=(0.004, -0.003),
             use_stabilizer=False,
             lower_bound=0.2,
             upper_bound=0.8
         )
         self.block3['anti_stdp'] = snn.STDP(
-            conv_layer=self.block3['conv'],
+            layer=self.block3['conv'],
             learning_rate=(-0.004, 0.0005),
             use_stabilizer=False,
             lower_bound=0.2,
