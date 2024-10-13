@@ -58,7 +58,7 @@ class EarlyStopping:
     def save_checkpoint(self, val_loss, model):
         if self.verbose:
             print(f'Validation loss decreased ({self.val_loss_min:.6f} --> {val_loss:.6f}). Saving model ...')
-        torch.save(model.state_dict(), 'checkpoint.pt')
+        torch.save(model.state_dict(), os.path.join("models", "lsm.pt"))
         self.val_loss_min = val_loss
 
 def initialize_weights(input_weight_scale, reservoir_weight_scale, input_connection_density, input_size, decay_factor=9, inhibitory_fraction=0.2, grid_x=10, grid_y=10, grid_z=10, initialize_reservoir_weights=True, reservoir_weights=None):
