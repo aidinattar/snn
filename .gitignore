@@ -271,3 +271,6 @@ saved.net
 data*
 
 runs*
+*.ipynb
+*.gif
+*.pt
