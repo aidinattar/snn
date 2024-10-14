@@ -274,3 +274,5 @@ runs*
 *.ipynb
 *.gif
 *.pt
+cache/
+cache/*
