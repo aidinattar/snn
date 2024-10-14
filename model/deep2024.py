@@ -86,35 +86,35 @@ class DeepSNN(NetworkTrainer):
         }
 
         self.block1['stdp'] = snn.STDP(
-            conv_layer=self.block1['conv'],
+            layer=self.block1['conv'],
             learning_rate=(0.004, -0.003),
             use_stabilizer=True,
             lower_bound=0,
             upper_bound=1
         )
         self.block2['stdp'] = snn.STDP(
-            conv_layer=self.block2['conv'],
+            layer=self.block2['conv'],
             learning_rate=(0.004, -0.003),
             use_stabilizer=True,
             lower_bound=0,
             upper_bound=1
         )
         self.block3['stdp'] = snn.STDP(
-            conv_layer=self.block3['conv'],
+            layer=self.block3['conv'],
             learning_rate=(0.004, -0.003),
             use_stabilizer=True,
             lower_bound=0,
             upper_bound=1
         )
         self.block4['stdp'] = snn.STDP(
-            conv_layer=self.block4['conv'],
+            layer=self.block4['conv'],
             learning_rate=(0.004, -0.003),
             use_stabilizer=False,
             lower_bound=0.2,
             upper_bound=0.8
         )
         self.block4['anti_stdp'] = snn.STDP(
-            conv_layer=self.block4['conv'],
+            layer=self.block4['conv'],
             learning_rate=(-0.004, 0.0005),
             use_stabilizer=False,
             lower_bound=0.2,
@@ -128,6 +128,11 @@ class DeepSNN(NetworkTrainer):
         self.max_ap = Parameter(torch.Tensor([0.15]))
         self.to(device)
         # self.file = open("log_new.txt", "w")
+
+        self.spikes_layer1 = 0
+        self.spikes_layer2 = 0
+        self.spikes_layer3 = 0
+        self.spikes_layer4 = 0
 
     def forward(self, input, max_layer = 4):
         """
@@ -150,6 +155,7 @@ class DeepSNN(NetworkTrainer):
         if self.training:
             pot = self.block1['conv'](input)
             spk, pot = sf.fire(pot, self.block1_params['threshold'], True)
+            self.spikes_layer1 += spk.sum().item()
             if max_layer == 1:
                 self.update_layer1(input, pot)
                 return spk, pot
@@ -157,6 +163,7 @@ class DeepSNN(NetworkTrainer):
             spk_in = sf.pad(sf.pooling(spk, 2, 2), (1, 1, 1, 1))
             pot = self.block2['conv'](spk_in)
             spk, pot = sf.fire(pot, self.block2_params['threshold'], True)
+            self.spikes_layer2 += spk.sum().item()
             if max_layer == 2:
                 self.update_layer2(spk_in, pot)
                 return spk, pot
@@ -164,6 +171,7 @@ class DeepSNN(NetworkTrainer):
             spk_in = sf.pad(sf.pooling(spk, 2, 2), (1, 1, 1, 1))
             pot = self.block3['conv'](spk_in)
             spk, pot = sf.fire(pot, self.block3_params['threshold'], True)
+            self.spikes_layer3 += spk.sum().item()
             if max_layer == 3:
                 self.update_layer3(spk_in, pot)
                 return spk, pot
@@ -171,6 +179,7 @@ class DeepSNN(NetworkTrainer):
             spk_in = sf.pad(sf.pooling(spk, 3, 3), (2, 2, 2, 2))
             pot = self.block4['conv'](spk_in)
             spk = sf.fire(pot)
+            self.spikes_layer4 += spk.sum().item()
             winners = sf.get_k_winners(pot, 1, 0, spk)
             self.update_ctx(spk_in, pot, spk, winners)
             return self.get_output(winners)
@@ -322,3 +331,11 @@ class DeepSNN(NetworkTrainer):
     def punish(self):
         """Punish the network"""
         self.block4['anti_stdp'](self.ctx["input_spikes"], self.ctx["potentials"], self.ctx["output_spikes"], self.ctx["winners"])
+
+    def get_spike_counts(self):
+        return {
+            "Layer 1": self.spikes_layer1,
+            "Layer 2": self.spikes_layer2,
+            "Layer 3": self.spikes_layer3,
+            "Layer 4": self.spikes_layer4,
+        }

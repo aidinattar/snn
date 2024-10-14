@@ -85,42 +85,42 @@ class DeepRSNN(NetworkTrainer):
         }
 
         self.block1['stdp'] = snn.STDP(
-            conv_layer=self.block1['conv'],
+            layer=self.block1['conv'],
             learning_rate=(0.004, -0.003),
             use_stabilizer=True,
             lower_bound=0,
             upper_bound=1
         )
         self.block2['stdp'] = snn.STDP(
-            conv_layer=self.block2['conv'],
+            layer=self.block2['conv'],
             learning_rate=(0.004, -0.003),
             use_stabilizer=True,
             lower_bound=0,
             upper_bound=1
         )
         self.block3['stdp'] = snn.STDP(
-            conv_layer=self.block3['conv'],
+            layer=self.block3['conv'],
             learning_rate=(0.004, -0.003),
             use_stabilizer=False,
             lower_bound=0,
             upper_bound=1
         )
         self.block3['anti_stdp'] = snn.STDP(
-            conv_layer=self.block3['conv'],
+            layer=self.block3['conv'],
             learning_rate=(-0.004, 0.0005),
             use_stabilizer=False,
             lower_bound=0,
             upper_bound=1
         )
         self.block4['stdp'] = snn.STDP(
-            conv_layer=self.block4['conv'],
+            layer=self.block4['conv'],
             learning_rate=(0.004, -0.003),
             use_stabilizer=False,
             lower_bound=0.2,
             upper_bound=0.8
         )
         self.block4['anti_stdp'] = snn.STDP(
-            conv_layer=self.block4['conv'],
+            layer=self.block4['conv'],
             learning_rate=(-0.004, 0.0005),
             use_stabilizer=False,
             lower_bound=0.2,
@@ -380,14 +380,14 @@ class DeepRSNN(NetworkTrainer):
         """
         if layer_idx == 3:
             self.block3['stdp'] = snn.STDP(
-                conv_layer=self.block3['conv'],
+                layer=self.block3['conv'],
                 learning_rate=(0.001, -0.00075),
                 use_stabilizer=False,
                 lower_bound=0.,
                 upper_bound=1
             )
             self.block3['anti_stdp'] = snn.STDP(
-                conv_layer=self.block3['conv'],
+                layer=self.block3['conv'],
                 learning_rate=(-0.001, 0.000125),
                 use_stabilizer=False,
                 lower_bound=0,
@@ -397,14 +397,14 @@ class DeepRSNN(NetworkTrainer):
             self.block3['anti_stdp'].to(self.device)
         elif layer_idx == 4:
             self.block4['stdp'] = snn.STDP(
-                conv_layer=self.block4['conv'],
+                layer=self.block4['conv'],
                 learning_rate=(0.004, -0.003),
                 use_stabilizer=False,
                 lower_bound=0.2,
                 upper_bound=0.8
             )
             self.block4['anti_stdp'] = snn.STDP(
-                conv_layer=self.block4['conv'],
+                layer=self.block4['conv'],
                 learning_rate=(-0.004, 0.0005),
                 use_stabilizer=False,
                 lower_bound=0.2,

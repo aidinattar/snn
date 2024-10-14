@@ -107,49 +107,49 @@ class InceptionSNN(NetworkTrainer):
         }
 
         self.block1['stdp'] = snn.STDP(
-            conv_layer=self.block1['conv'],
+            layer=self.block1['conv'],
             learning_rate=(0.004, -0.003),
             use_stabilizer=True,
             lower_bound=0,
             upper_bound=1
         )
         self.block2['stdp'] = snn.STDP(
-            conv_layer=self.block2['conv'],
+            layer=self.block2['conv'],
             learning_rate=(0.004, -0.003),
             use_stabilizer=True,
             lower_bound=0,
             upper_bound=1
         )
         self.block3_1['stdp'] = snn.STDP(
-            conv_layer=self.block3_1['conv'],
+            layer=self.block3_1['conv'],
             learning_rate=(0.004, -0.003),
             use_stabilizer=True,
             lower_bound=0,
             upper_bound=1
         )
         self.block3_2['stdp'] = snn.STDP(
-            conv_layer=self.block3_2['conv'],
+            layer=self.block3_2['conv'],
             learning_rate=(0.004, -0.003),
             use_stabilizer=True,
             lower_bound=0,
             upper_bound=1
         )
         self.block3_3['stdp'] = snn.STDP(
-            conv_layer=self.block3_3['conv'],
+            layer=self.block3_3['conv'],
             learning_rate=(0.004, -0.003),
             use_stabilizer=True,
             lower_bound=0,
             upper_bound=1
         )
         self.block4['stdp'] = snn.STDP(
-            conv_layer=self.block4['conv'],
+            layer=self.block4['conv'],
             learning_rate=(0.004, -0.003),
             use_stabilizer=False,
             lower_bound=0.2,
             upper_bound=0.8
         )
         self.block4['anti_stdp'] = snn.STDP(
-            conv_layer=self.block4['conv'],
+            layer=self.block4['conv'],
             learning_rate=(-0.004, 0.0005),
             use_stabilizer=False,
             lower_bound=0.2,
