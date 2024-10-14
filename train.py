@@ -352,6 +352,8 @@ def main():
                 total_samples += np.sum(perf_train_batch)
                 i += 1
 
+            print(model.get_spike_counts())
+
             perf_train /= len(train_loader)
             if best_train[0] <= perf_train[0]:
                 best_train = np.append(perf_train, epoch)
