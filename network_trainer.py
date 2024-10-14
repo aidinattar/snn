@@ -47,7 +47,7 @@ class NetworkTrainer(nn.Module):
         self.activation_maps = {}
         self.tensorboard = tensorboard
         if self.tensorboard:
-            self.define_writer(f"./runs_{self.__class__.__name__}")
+            self.define_writer(f"./runs/{self.__class__.__name__}/{utils.get_time_stamp()}")
         self.all_preds = []
         self.all_targets = []
         self.iteration = 0
