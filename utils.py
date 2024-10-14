@@ -206,7 +206,7 @@ def prepare_data(dataset, batch_size):
 
     # Load dataset
     if dataset == "mnist":
-        data_root = "data_mnist"
+        data_root = "data/mnist"
         num_classes = 10
         train_data = utils.CacheDataset(
             torchvision.datasets.MNIST(
@@ -226,7 +226,7 @@ def prepare_data(dataset, batch_size):
         )
     elif dataset == "cifar10":
         num_classes = 10
-        data_root = "data_cifar10"
+        data_root = "data/cifar10"
         train_data = utils.CacheDataset(
             torchvision.datasets.CIFAR10(
                 root = data_root,
@@ -245,7 +245,7 @@ def prepare_data(dataset, batch_size):
         )
     elif dataset == "emnist":
         num_classes = 47
-        data_root = "data_emnist"
+        data_root = "data/emnist"
         train_data = utils.CacheDataset(
             torchvision.datasets.EMNIST(
                 root = data_root,
