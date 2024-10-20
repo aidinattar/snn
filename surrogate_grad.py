@@ -444,8 +444,8 @@ def train(model, train_loader, optimizer, loss_fn, num_steps, device, writer=Non
 
         # Log the loss and accuracy
         if writer is not None:
-            writer.add_scalar("Loss_Iteration/Train", batch_loss, len(train_loader) * epoch + batch_idx)
-            writer.add_scalar("Accuracy_Iteration/Train", batch_correct, len(train_loader) * epoch + batch_idx)
+            writer.add_scalar("Train/Loss_Iteration", batch_loss, len(train_loader) * epoch + batch_idx)
+            writer.add_scalar("Train/Accuracy_Iteration", batch_correct, len(train_loader) * epoch + batch_idx)
         batch_idx += 1
 
         # Step the learning rate scheduler
@@ -491,8 +491,8 @@ def test(model, test_loader, loss_fn, num_steps, device, writer=None, epoch=0):
 
             # Log the loss and accuracy
             if writer is not None:
-                writer.add_scalar("Loss_Iteration/Test", batch_loss, len(test_loader) * epoch + batch_idx)
-                writer.add_scalar("Accuracy_Iteration/Test", batch_correct, len(test_loader) * epoch + batch_idx)
+                writer.add_scalar("Test/Loss_Iteration", batch_loss, len(test_loader) * epoch + batch_idx)
+                writer.add_scalar("Test/Accuracy_Iteration", batch_correct, len(test_loader) * epoch + batch_idx)
 
             batch_idx += 1
 
@@ -676,10 +676,10 @@ def main():
         iterator.set_postfix(train_loss=train_loss, train_acc=train_acc, test_loss=test_loss, test_acc=test_acc)
 
         # Log the results
-        writer.add_scalar("Loss/Train", train_loss, epoch)
-        writer.add_scalar("Loss/Test", test_loss, epoch)
-        writer.add_scalar("Accuracy/Train", train_acc, epoch)
-        writer.add_scalar("Accuracy/Test", test_acc, epoch)
+        writer.add_scalar("Train/Loss", train_loss, epoch)
+        writer.add_scalar("Test/Loss", test_loss, epoch)
+        writer.add_scalar("Train/Accuracy", train_acc, epoch)
+        writer.add_scalar("Test/Accuracy", test_acc, epoch)
 
         # Save the model if the accuracy is better
         if test_acc > best_acc:
