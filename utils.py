@@ -21,6 +21,8 @@ from s1c1 import S1C1
 from SpykeTorch import utils
 from tqdm import tqdm
 from imageio import imwrite
+from sklearn.preprocessing import LabelEncoder
+import tonic
 
 def get_time():
     """Get the current time"""
@@ -206,8 +208,9 @@ def prepare_data(dataset, batch_size):
 
     # Load dataset
     if dataset == "mnist":
-        data_root = "data/mnist"
+        data_root = "data/"
         num_classes = 10
+        in_channels = 6
         train_data = utils.CacheDataset(
             torchvision.datasets.MNIST(
                 root = data_root,
@@ -226,7 +229,8 @@ def prepare_data(dataset, batch_size):
         )
     elif dataset == "cifar10":
         num_classes = 10
-        data_root = "data/cifar10"
+        data_root = "data/"
+        in_channels = 6
         train_data = utils.CacheDataset(
             torchvision.datasets.CIFAR10(
                 root = data_root,
@@ -245,7 +249,8 @@ def prepare_data(dataset, batch_size):
         )
     elif dataset == "emnist":
         num_classes = 47
-        data_root = "data/emnist"
+        data_root = "data/"
+        in_channels = 6
         train_data = utils.CacheDataset(
             torchvision.datasets.EMNIST(
                 root = data_root,
@@ -264,6 +269,41 @@ def prepare_data(dataset, batch_size):
                 transform = s1c1
             )
         )
+    elif dataset == "nmnist":
+        num_classes = 10
+        data_root = "data/"
+        in_channels = 2
+        trans = tonic.transforms.Compose([
+            tonic.transforms.Denoise(filter_time=3000),
+            tonic.transforms.ToFrame(sensor_size=tonic.datasets.NMNIST.sensor_size, n_time_bins=15),
+        ])
+        train_data = utils.CacheDataset(
+            tonic.datasets.NMNIST(
+                save_to = data_root,
+                train = True,
+                transform = trans
+            )
+        )
+        test_data = utils.CacheDataset(
+            tonic.datasets.NMNIST(
+                save_to = data_root,
+                train = False,
+                transform = trans
+            )
+        )
+    elif dataset == "cifar10-dvs":
+        num_classes = 10
+        data_root = "data/"
+        in_channels = 2
+        trans = tonic.transforms.Compose([
+            tonic.transforms.Denoise(filter_time=3000),
+            tonic.transforms.ToFrame(sensor_size=tonic.datasets.CIFAR10DVS.sensor_size, n_time_bins=15),
+        ])
+        full_dataset = tonic.datasets.CIFAR10DVS(save_to=data_root, transform=trans)
+        generator = torch.Generator().manual_seed(42)
+        train_data, test_data = torch.utils.data.random_split(full_dataset, [0.8, 0.2], generator=generator)
+        train_data = utils.CacheDataset(train_data)
+        test_data = utils.CacheDataset(test_data)
     else:
         raise ValueError(f"Unknown dataset: {dataset}")
     
@@ -292,7 +332,7 @@ def prepare_data(dataset, batch_size):
         num_workers = 4,
         pin_memory = True
     )
-    return train_loader, test_loader, metrics_loader, num_classes
+    return train_loader, test_loader, metrics_loader, num_classes, in_channels
 
 def is_model_on_cuda(model):
     """Check if the model is on CUDA"""
@@ -432,3 +472,65 @@ class LatencyEncoding:
         for t in range(self.timesteps):
             spikes[t][spike_times <= t] = 1
         return spikes.float()
+    
+
+# Define the early stopping class
+class EarlyStopping:
+    def __init__(self, patience=5, verbose=False, model=None):
+        self.patience = patience
+        self.verbose = verbose
+        self.counter = 0
+        self.best_score = None
+        self.early_stop = False
+        self.val_loss_min = np.Inf
+        self.model = model
+
+    def __call__(self, val_loss, model):
+        score = -val_loss
+
+        if self.best_score is None:
+            self.best_score = score
+            self.save_checkpoint(val_loss, model)
+        elif score < self.best_score:
+            self.counter += 1
+            if self.verbose:
+                print(f'EarlyStopping counter: {self.counter} out of {self.patience}')
+            if self.counter >= self.patience:
+                self.early_stop = True
+        else:
+            self.best_score = score
+            self.save_checkpoint(val_loss, model)
+            self.counter = 0
+
+    def save_checkpoint(self, val_loss, model):
+        if self.verbose:
+            print(f'Validation loss decreased ({self.val_loss_min:.6f} --> {val_loss:.6f}). Saving model ...')
+        torch.save(model.state_dict(), os.path.join("models", "lsm.pt"))
+        self.val_loss_min = val_loss
+
+
+class LabelEncoderTransform:
+    def __init__(self, classes):
+        self.encoder = LabelEncoder()
+        self.encoder.fit(classes)
+    
+    def __call__(self, label):
+        return self.encoder.transform([label])[0]
+
+
+caltech101_classes = ['BACKGROUND_Google', 'Faces_easy', 'Leopards', 'Motorbikes', 'accordion',
+'airplanes', 'anchor', 'ant', 'barrel', 'bass', 'beaver', 'binocular', 'bonsai',
+'brain', 'brontosaurus', 'buddha', 'butterfly', 'camera', 'cannon', 'car_side',
+'ceiling_fan', 'cellphone', 'chair', 'chandelier', 'cougar_body',
+'cougar_face', 'crab', 'crayfish', 'crocodile', 'crocodile_head', 'cup',
+'dalmatian', 'dollar_bill', 'dolphin', 'dragonfly', 'electric_guitar',
+'elephant', 'emu', 'euphonium', 'ewer', 'ferry', 'flamingo', 'flamingo_head',
+'garfield', 'gerenuk', 'gramophone', 'grand_piano', 'hawksbill', 'headphone',
+'hedgehog', 'helicopter', 'ibis', 'inline_skate', 'joshua_tree', 'kangaroo',
+'ketch', 'lamp', 'laptop', 'llama', 'lobster', 'lotus', 'mandolin', 'mayfly',
+'menorah', 'metronome', 'minaret', 'nautilus', 'octopus', 'okapi', 'pagoda',
+'panda', 'pigeon', 'pizza', 'platypus', 'pyramid', 'revolver', 'rhino',
+'rooster', 'saxophone', 'schooner', 'scissors', 'scorpion', 'sea_horse',
+'snoopy', 'soccer_ball', 'stapler', 'starfish', 'stegosaurus', 'stop_sign',
+'strawberry', 'sunflower', 'tick', 'trilobite', 'umbrella', 'watch',
+'water_lilly', 'wheelchair', 'wild_cat', 'windsor_chair', 'wrench', 'yin_yang']
