@@ -49,39 +49,39 @@ def main():
         os.mkdir("models")
 
     # Prepare the data
-    train_loader, test_loader, metrics_loader, num_classes = utils.prepare_data(args.dataset, args.batch_size)
+    train_loader, test_loader, metrics_loader, num_classes, in_channels = utils.prepare_data(args.dataset, args.batch_size)
 
     # Initialize the model
     if args.model == "mozafari2018":
-        model = MozafariMNIST2018(num_classes=num_classes, device=args.device, tensorboard=args.tensorboard)
+        model = MozafariMNIST2018(in_channels=in_channels, num_classes=num_classes, device=args.device, tensorboard=args.tensorboard)
         epochs = args.epochs[2]
         max_layers = 3
     elif args.model == "deep2024":
-        model = DeepSNN(num_classes=num_classes, device=args.device, tensorboard=args.tensorboard)
+        model = DeepSNN(in_channels=in_channels, num_classes=num_classes, device=args.device, tensorboard=args.tensorboard)
         epochs = args.epochs[3]
         max_layers = 4
     elif args.model == "deepr2024":
-        model = DeepRSNN(num_classes=num_classes, device=args.device, tensorboard=args.tensorboard)
+        model = DeepRSNN(in_channels=in_channels, num_classes=num_classes, device=args.device, tensorboard=args.tensorboard)
         epochs = args.epochs[3]
         max_layers = 4
     elif args.model == "deepr2024_2":
-        model = DeepRSNN2(num_classes=num_classes, device=args.device, tensorboard=args.tensorboard)
+        model = DeepRSNN2(in_channels=in_channels, num_classes=num_classes, device=args.device, tensorboard=args.tensorboard)
         epochs = args.epochs[3]
         max_layers = 4
     elif args.model == "inception2024":
-        model = InceptionSNN(num_classes=num_classes, device=args.device, tensorboard=args.tensorboard)
+        model = InceptionSNN(in_channels=in_channels, num_classes=num_classes, device=args.device, tensorboard=args.tensorboard)
         epochs = args.epochs[3]
         max_layers = 4
     elif args.model == "majority2024":
-        model = MajoritySNN(num_classes=num_classes, device=args.device, tensorboard=args.tensorboard)
+        model = MajoritySNN(in_channels=in_channels, num_classes=num_classes, device=args.device, tensorboard=args.tensorboard)
         epochs = args.epochs[2]
         max_layers = 3
     elif args.model == "resnet2024":
-        model = ResSNN(num_classes=num_classes, device=args.device, tensorboard=args.tensorboard)
+        model = ResSNN(in_channels=in_channels, num_classes=num_classes, device=args.device, tensorboard=args.tensorboard)
         epochs = args.epochs[3]
         max_layers = 4
     elif args.model == "deeper2024":
-        model = DeeperSNN(num_classes=num_classes, device=args.device, tensorboard=args.tensorboard)
+        model = DeeperSNN(in_channels=in_channels, num_classes=num_classes, device=args.device, tensorboard=args.tensorboard)
         epochs = args.epochs[4]
         max_layers = 5
     else:
@@ -89,6 +89,9 @@ def main():
 
     # Move the model to the appropriate device
     model.to(args.device)
+
+    if args.tensorboard:
+        model.define_writer(log_dir=f"runs/{args.model}/{args.dataset}")
 
     if args.debug:
         # Check if the model is on CUDA
@@ -102,7 +105,7 @@ def main():
 
     # Log model to TensorBoard
     if args.tensorboard:
-        model.log_model(input_size=(15,6,28,28))
+        model.log_model(input_size=(15,in_channels,28,28))
 
     #############################
     # Train the model           #
