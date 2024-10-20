@@ -21,7 +21,7 @@ class DeeperSNN(NetworkTrainer):
     """Implementation of a deep SNN for the MNIST dataset
     with two R-STDP layers"""
 
-    def __init__(self, num_classes=10, device="cuda", tensorboard=False):
+    def __init__(self, in_channels=6, num_classes=10, device="cuda", tensorboard=False):
         super(DeeperSNN, self).__init__(num_classes=num_classes, device=device, tensorboard=tensorboard)
 
         neurons_per_class = 10
@@ -29,7 +29,7 @@ class DeeperSNN(NetworkTrainer):
 
         self.block1 = nn.ModuleDict({
             'conv': snn.Convolution(
-                in_channels=6,
+                in_channels=in_channels,
                 out_channels=30,
                 kernel_size=3,
                 weight_mean=0.8,

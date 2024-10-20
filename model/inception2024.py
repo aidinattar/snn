@@ -20,12 +20,12 @@ from torch.nn.parameter import Parameter
 class InceptionSNN(NetworkTrainer):
     """Implementation of the Mozafari et al. 2018 paper"""
 
-    def __init__(self, num_classes=10, device="cuda", tensorboard=False):
+    def __init__(self, in_channels=6, num_classes=10, device="cuda", tensorboard=False):
         super(InceptionSNN, self).__init__(num_classes=num_classes, device=device, tensorboard=tensorboard)
 
         self.block1 = nn.ModuleDict({
             'conv': snn.Convolution(
-                in_channels=6,
+                in_channels=in_channels,
                 out_channels=30,
                 kernel_size=5,
                 weight_mean=0.8,
