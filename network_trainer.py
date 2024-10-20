@@ -46,8 +46,8 @@ class NetworkTrainer(nn.Module):
         }
         self.activation_maps = {}
         self.tensorboard = tensorboard
-        if self.tensorboard:
-            self.define_writer(f"./runs/{self.__class__.__name__}/{utils.get_time_stamp()}")
+        # if self.tensorboard:
+        #     self.define_writer(f"./runs/{self.__class__.__name__}/{utils.get_time_stamp()}")
         self.all_preds = []
         self.all_targets = []
         self.iteration = 0
@@ -139,8 +139,8 @@ class NetworkTrainer(nn.Module):
         
         # Logging to TensorBoard
         if self.tensorboard:
-            self.writer.add_scalar('Train_Iteration/Loss', avg_loss, self.iteration)
-            self.writer.add_scalar('Train_Iteration/Accuracy', accuracy, self.iteration)
+            self.writer.add_scalar('Train/Loss_Iteration', avg_loss, self.iteration)
+            self.writer.add_scalar('Train/Accuracy_Iteration', accuracy, self.iteration)
 
         self.iteration += 1
         
