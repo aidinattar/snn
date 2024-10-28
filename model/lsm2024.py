@@ -16,6 +16,7 @@ import numpy as np
 import snntorch as snn
 import torch.nn.functional as F
 from tqdm import tqdm
+from torch.nn import init
 
 class LSM(nn.Module):
     def __init__(
@@ -215,6 +216,136 @@ class LSM_partition(nn.Module):
 
         return output, spk_rec_out
 
+
+class LSM_radar(nn.Module):
+    def __init__(
+        self,
+        input_size: int,
+        reservoir_size: int,
+        output_size: int,
+        weight_in: np.ndarray=None,
+        weight_lin: np.ndarray=None,
+        weight_res: np.ndarray=None,
+        n_partitions: int=3,
+        sparsity: float=0.1,
+        alpha: float=0.9,
+        beta: float=0.9,
+        threshold: float=1.0,
+        device: str='cuda',
+        dropout: float=0.5
+    ):
+        super(LSM_radar, self).__init__()
+
+        # Input layer (fully connected)
+        self.input_fc = nn.Linear(input_size, reservoir_size)
+        if weight_in is not None:
+            pass
+            self.input_fc.weight = nn.Parameter(torch.from_numpy(weight_in[0]))
+
+        # Define the reservoir layer
+        self.reservoir_size = reservoir_size
+        self.sparsity = sparsity
+        self.n_partitions = n_partitions
+        self.weight_in = weight_in
+        self.device = device
+        self.dropout = dropout
+
+        # Initialize random sparse connectivity for the reservoir
+        self.reservoir = nn.Linear(reservoir_size, reservoir_size, bias=False)
+        if weight_lin is not None:
+            self.reservoir.weight = nn.Parameter(torch.from_numpy(weight_lin))
+        else:
+            self.init_reservoir_connections()
+
+        # Synaptic integration dynamics
+        self.lsm = snn.RSynaptic(alpha=alpha, beta=beta, all_to_all=True, linear_features=reservoir_size, threshold=threshold)
+        if weight_res is not None:
+            self.lsm.recurrent.weight = nn.Parameter(torch.from_numpy(weight_res))
+
+        # Output (readout) layer
+        self.readout = nn.Sequential(
+            nn.Linear(reservoir_size * n_partitions, 256),
+            nn.ReLU(),
+            nn.Linear(256, 128),
+            nn.ReLU(),
+            nn.Linear(128, output_size)
+        )
+
+        # Freeze the weights of the input and reservoir layers
+        self._freeze_weights()
+        self.to(torch.float32)# Apply the weight initialization
+        self.apply(self._initialize_weights)
+    
+    def _initialize_weights(self, module):
+        """Initialize weights for the model layers."""
+        if isinstance(module, nn.Linear):
+            init.xavier_uniform_(module.weight)  # Xavier initialization
+            if module.bias is not None:
+                module.bias.data.fill_(0.0)  # Set bias to zero
+
+    def _freeze_weights(self):
+        """
+        Freezes the weights of the input and reservoir layers.
+        """
+        for param in self.input_fc.parameters():
+            param.requires_grad = False
+        for param in self.reservoir.parameters():
+            param.requires_grad = False
+        for param in self.lsm.recurrent.parameters():
+            param.requires_grad = False
+
+    def init_reservoir_connections(self):
+        # Randomly mask connections based on sparsity
+        with torch.no_grad():
+            mask = torch.rand_like(self.reservoir.weight) < self.sparsity
+            self.reservoir.weight *= mask.float()
+
+    def forward(self, x, lengths):
+        max_length = max(lengths)
+        spk, syn, mem = self.lsm.init_rsynaptic()
+
+        spk_rec = []
+        partition_steps = max_length // self.n_partitions
+        partition_idx = 0
+
+        # Dynamically iterate over time steps based on sequence length
+        for step in range(max_length):
+            # Change input weights for each partition
+            if step % partition_steps == 0 and partition_idx < self.n_partitions:
+                self.input_fc.weight = nn.Parameter(torch.from_numpy(self.weight_in[partition_idx]).to(self.device))
+                partition_idx = (partition_idx + 1) % self.n_partitions
+
+            # Apply input transformation and add previous reservoir spike
+            current_input = torch.zeros((x.size(0), self.reservoir_size), device=self.device)
+            for i, length in enumerate(lengths):
+                if step < length:
+                    current_input[i] = self.input_fc(x[i, step])
+
+            if step >= partition_steps:
+                current_input += self.reservoir(spk_rec[step - partition_steps])
+
+            spk, syn, mem = self.lsm(current_input, spk, syn, mem)
+            spk_rec.append(spk)
+
+        # Stack spikes over time and compute average response for each partition
+        spk_rec_out = torch.stack(spk_rec)
+        lsm_parts = []
+        for partition in range(self.n_partitions):
+            start = partition * partition_steps
+            end = start + partition_steps
+            partition_data = [spk_rec_out[start:end, i].mean(0) for i, length in enumerate(lengths)]
+            lsm_parts.append(torch.stack(partition_data))
+        readout_input = torch.cat(lsm_parts, dim=1)
+
+        # Apply dropout to the readout input
+        readout_input = F.dropout(readout_input, p=self.dropout, training=self.training)
+
+        # Pass aggregated response to readout layer and apply softmax
+        output = self.readout(readout_input)
+        # output = F.softmax(output, dim=1)
+        output = F.log_softmax(output, dim=1)
+
+        return output, spk_rec_out
 
 class ConvLSM(nn.Module):
     def __init__(

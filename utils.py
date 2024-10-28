@@ -3,7 +3,7 @@
 # Description:      Some utility functions                                     #
 # Author:           Aidin Attar                                                #
 # Date:             2024-07-01                                                 #
-# Version:          0.2                                                        #
+# Version:          0.4                                                        #
 # Usage:            None                                                       #
 # Notes:            None                                                       #
 # Python version:   3.11.7                                                     #
@@ -310,25 +310,26 @@ def prepare_data(dataset, batch_size):
     train_loader = torch.utils.data.DataLoader(
         train_data,
         batch_size = batch_size,
-        shuffle = False,
+        shuffle = True,
         num_workers = 4,
         pin_memory = True
     )
     test_loader = torch.utils.data.DataLoader(
         test_data,
         batch_size = len(test_data),
-        shuffle = False,
+        shuffle = True,
         num_workers = 4,
         pin_memory = True
     )
+    metrics_indices = torch.randperm(len(test_data))[:batch_size]
     metrics_data = torch.utils.data.Subset(
         test_data,
-        range(batch_size)
+        metrics_indices
     )
     metrics_loader = torch.utils.data.DataLoader(
         metrics_data,
         batch_size = len(metrics_data),
-        shuffle = False,
+        shuffle = True,
         num_workers = 4,
         pin_memory = True
     )

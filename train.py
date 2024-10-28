@@ -121,7 +121,8 @@ def main():
         iterator = tqdm(range(args.epochs[0]), desc="Training First Layer")
         for epoch in iterator:
             i = 0
-            for i, (data, _) in enumerate(train_loader):
+            iterator_epoch = tqdm(train_loader, desc=f"Epoch {epoch}", position=1, leave=False)
+            for i, (data, _) in enumerate(iterator_epoch):
                 data = data.to(args.device)  # Ensure data is on the correct device
                 model.train_unsupervised(data, layer_idx=1)
                 iterator.set_postfix({"Iteration": i+1})
@@ -139,7 +140,8 @@ def main():
         iterator = tqdm(range(args.epochs[1]), desc="Training Second Layer")
         for epoch in iterator:
             i = 0
-            for data, _ in train_loader:
+            iterator_epoch = tqdm(train_loader, desc=f"Epoch {epoch}", position=1, leave=False)
+            for data, _ in iterator_epoch:
                 data = data.to(args.device)  # Ensure data is on the correct device
                 model.train_unsupervised(data, layer_idx=2)
                 iterator.set_postfix({"Iteration": i+1})
@@ -159,7 +161,8 @@ def main():
             iterator = tqdm(range(args.epochs[2]), desc="Training Third Layer")
             for epoch in iterator:
                 i = 0
-                for data, _ in train_loader:
+                iterator_epoch = tqdm(train_loader, desc=f"Epoch {epoch}", position=1, leave=False)
+                for data, _ in iterator_epoch:
                     data = data.to(args.device)
                     model.train_unsupervised(data, layer_idx=3)
                     iterator.set_postfix({"Iteration": i+1})
@@ -180,7 +183,8 @@ def main():
                 iterator = tqdm(range(args.epochs[2]), desc="Training Third Layer, Branch: " + str(branch))
                 for epoch in iterator:
                     i = 0
-                    for data, _ in train_loader:
+                    iterator_epoch = tqdm(train_loader, desc=f"Epoch {epoch}", position=1, leave=False)
+                    for data, _ in iterator_epoch:
                         data = data.to(args.device)
                         model.train_unsupervised(data, layer_idx=3, branch_idx = branch)
                         iterator.set_postfix({"Iteration": i+1})
@@ -200,7 +204,8 @@ def main():
             iterator = tqdm(range(args.epochs[3]), desc="Training Fourth Layer")
             for epoch in iterator:
                 i = 0
-                for data, _ in train_loader:
+                iterator_epoch = tqdm(train_loader, desc=f"Epoch {epoch}", position=1, leave=False)
+                for data, _ in iterator_epoch:
                     data = data.to(args.device)
                     model.train_unsupervised(data, layer_idx=4)
                     iterator.set_postfix({"Iteration": i+1})
@@ -260,13 +265,14 @@ def main():
             total_loss = 0
             total_samples = 0
             i = 0
-            for k, (data, targets) in enumerate(train_loader):
+            iterator_epoch = tqdm(train_loader, desc=f"Training epoch {epoch}", position=1, leave=False)
+            for k, (data, targets) in enumerate(iterator_epoch):
                 # if k == 0:
                 #     model.log_inputs(data, epoch)
                 
                 perf_train_batch = model.train_rl(data, targets, layer_idx=max_layers)
                 # utils.memory_usage()
-                iterator.set_postfix({"Iteration": i+1, "Performance": perf_train_batch})
+                iterator_epoch.set_postfix({"Performance": perf_train_batch})
                 
                 if args.model in ["mozafari2018", "deepr2024", "deepr2024_2"]:
                     apr_adapt3 = apr3 * (perf_train_batch[1] * adaptive_int + adaptive_min)
@@ -355,7 +361,9 @@ def main():
                 total_samples += np.sum(perf_train_batch)
                 i += 1
 
-            print(model.get_spike_counts())
+                iterator.set_postfix({"Performance": np.round(perf_train / (i + 1), 2)})
+
+            # print(model.get_spike_counts())
 
             perf_train /= len(train_loader)
             if best_train[0] <= perf_train[0]:

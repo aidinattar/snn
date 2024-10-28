@@ -57,12 +57,14 @@ class MozafariMNIST2018(NetworkTrainer):
         })
 
         self.block1_params = {
-            'threshold': 15,
+            # 'threshold': 15,
+            'threshold': .5,
             'n_winners': 5,
             'inhibition_radius': 3,
         }
         self.block2_params = {
-            'threshold': 10,
+            # 'threshold': 10,
+            'threshold': .2,
             'n_winners': 8,
             'inhibition_radius': 1,
         }
@@ -121,6 +123,7 @@ class MozafariMNIST2018(NetworkTrainer):
         """
         # Pad the input to avoid edge effects
         input = sf.pad(input.float(), (2, 2, 2, 2), 0)
+        input += torch.bernoulli(torch.full_like(input, 0.2))
         if self.training:
             pot = self.block1['conv'](input)
             spk, pot = sf.fire(pot, self.block1_params['threshold'], True)

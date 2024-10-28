@@ -82,7 +82,7 @@ class NetworkTrainer(nn.Module):
         """
         self.train()
 
-        iterator = tqdm(data, total=len(data), desc=f"Epoch {self.epoch}", position=1, leave=False)
+        iterator = tqdm(data, total=len(data), desc=f"Processing data", position=2, leave=False)
         for data_in in iterator:
             data_in = data_in.to(self.device)
             self(data_in, layer_idx)
@@ -112,7 +112,7 @@ class NetworkTrainer(nn.Module):
         self.train()
         perf = np.array([0, 0, 0])  # correct, wrong, silence
         
-        iterator = tqdm(zip(data, target), total=len(data), desc=f"Epoch {self.epoch}", position=1, leave=False)
+        iterator = tqdm(zip(data, target), total=len(data), desc=f"Processing data", position=2, leave=False)
         for data_in, target_in in iterator:
             data_in = data_in.to(self.device)
             target_in = target_in.to(self.device)
