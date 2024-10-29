@@ -28,7 +28,7 @@ from utils import EarlyStopping, LabelEncoderTransform, caltech101_classes
 from torch.utils.data import Subset
 from torchvision import transforms as T
 from tonic import DiskCachedDataset
-from dopnet_dataset import DopNetH5Dataset, DopNetH5TestDataset, collate_fn
+from radar_datasets import DopNetH5Dataset, SoliH5Dataset, collate_fn
 
 os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' # Suppress TensorFlow logging
@@ -72,6 +72,12 @@ def main():
 
         train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, collate_fn=collate_fn)
         test_loader = DataLoader(test_dataset, batch_size=args.batch_size, shuffle=True, collate_fn=collate_fn)
+    elif args.dataset == 'soli':
+        file_path = './data/Soli_Preprocessed/soli_Preprocessed.h5'
+        soli_h5_dataset = SoliH5Dataset(h5_file=file_path, mode='unrolled')
+        train_dataset, test_dataset = torch.utils.data.random_split(soli_h5_dataset, [int(len(soli_h5_dataset)*0.8), len(soli_h5_dataset) - int(len(soli_h5_dataset)*0.8)])
+        train_loader = DataLoader(soli_h5_dataset, batch_size=args.batch_size, shuffle=True, collate_fn=collate_fn)
+        test_loader = DataLoader(soli_h5_dataset, batch_size=args.batch_size, shuffle=False, collate_fn=collate_fn)
     else:
         raise ValueError(f'Dataset {args.dataset} not supported.')
 
@@ -87,7 +93,7 @@ def main():
     print(f'Data shape: {data.shape}')
     print(f'Target counts: {np.unique(_, return_counts=True)}')
 
-    input_shape = 540 #data.shape[-1]
+    input_shape = 150 #540 #data.shape[-1]
 
     # Initialize random sparse connectivity for the reservoir
     if args.model == 'lsm_radar':
@@ -124,11 +130,12 @@ def main():
     else:
         raise ValueError(f'Model {args.model} not supported.')
 
-    class_weights = torch.tensor([
-        466, 696, 479, 792
-    ], dtype=torch.float32, device=args.device)
-    class_weights = 1 / class_weights
-    class_weights /= class_weights.sum()
+    # class_weights = torch.tensor([
+    #     466, 696, 479, 792
+    # ], dtype=torch.float32, device=args.device)
+    # class_weights = 1 / class_weights
+    # class_weights /= class_weights.sum()
+    class_weights = None
 
     # Define the loss function
     if args.loss == 'crossentropy':
@@ -170,6 +177,8 @@ def main():
         iterator_epoch = tqdm(train_loader, desc=f'Epoch {epoch + 1}', unit='batch', position=1, leave=False, dynamic_ncols=True, total=len(train_loader), initial=0, ascii=True)
         for i, (data, target, length) in enumerate(iterator_epoch):
             data, target = data.to(args.device), target.to(args.device)
+
+            target = target.long()
 
             # Zero the gradients
             optimizer.zero_grad()

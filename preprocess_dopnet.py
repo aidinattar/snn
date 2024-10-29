@@ -59,17 +59,16 @@ def preprocess_data(x, thresholding_method='otsu'):
     # Convert to grayscale (0–255)
     x = 255 * (x - np.min(x)) / (np.max(x) - np.min(x))
 
+    # Thresholding with 95th percentile
+    threshold = np.percentile(x, 94)
+    x = (x >= threshold).astype(np.uint8)
+
     # Apply Gaussian Filter
     x = cv2.GaussianBlur(x, (5, 5), sigmaX=1)
     # x = multi_scale_gaussian_blur(x)
 
-    # Thresholding with 95th percentile
-    threshold = np.percentile(x, 92.5)
-    x = (x >= threshold).astype(np.uint8)
-
     if thresholding_method == 'otsu':
         # Apply Otsu's thresholding
-        pass
         _, x = cv2.threshold(x.astype(np.uint8), 0, 1, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
     elif thresholding_method == 'met':
         # Apply MET thresholding
@@ -134,8 +133,8 @@ def create_hdf5_file(root_dir, person_list, gestures, thresholding_method='otsu'
                 iter_samples = tqdm(range(len(mat_data["Data_Training"]["Doppler_Signals"][0][0][0][gesture])), desc=f"Gesture {gesture}", unit="samples", unit_scale=True, leave=False, position=2, bar_format="{desc}: {percentage:3.0f}%|{bar}| {n_fmt}/{total_fmt}", dynamic_ncols=True)
                 for sample in iter_samples:
                     # Preprocess data
-                    # x = preprocess_data(mat_data["Data_Training"]["Doppler_Signals"][0][0][0][gesture][sample], thresholding_method)
-                    x = preprocess_data(mat_data["Data_Training"]["Doppler_Signals"][0][0][0][gesture][sample])
+                    x = preprocess_data(mat_data["Data_Training"]["Doppler_Signals"][0][0][0][gesture][sample], thresholding_method)
+                    # x = preprocess_data(mat_data["Data_Training"]["Doppler_Signals"][0][0][0][gesture][sample])
 
                     # Save to HDF5 file with structure /person/gesture/sample
                     grp = h5f.require_group(f"{person}/{gesture}")
@@ -171,8 +170,8 @@ def create_hdf5_test_file(test_file_path, output_dir, thresholding_method='otsu'
         
         for sample_num in iter_samples:
             # Get each sample and preprocess it
-            # x = preprocess_data(test_data["Data_rand"][sample_num][0][0][0], thresholding_method)
-            x = preprocess_data(test_data["Data_rand"][sample_num][0][0][0])
+            x = preprocess_data(test_data["Data_rand"][sample_num][0][0][0], thresholding_method)
+            # x = preprocess_data(test_data["Data_rand"][sample_num][0][0][0])
 
             # Extract label information
             label_string = test_data["Data_rand"][sample_num][1][0]
