@@ -13,6 +13,7 @@ import os
 import torch
 import psutil
 import struct
+import random
 import datetime
 import numpy as np
 import torchvision
@@ -174,7 +175,7 @@ def get_embeddings_metadata(model, dataloader, device, max_layer=None):
     label_imgs = torch.stack(label_imgs).squeeze(1)
     return embeddings, metadata, label_imgs
 
-def prepare_data(dataset, batch_size):
+def prepare_data(dataset, batch_size, augment=False, ratio=1):
     """
     Prepare the data for training
     
@@ -184,6 +185,8 @@ def prepare_data(dataset, batch_size):
         Name of the dataset to use
     batch_size : int
         Batch size for the data loader
+    augment : bool
+        Whether to augment the data or not
 
     Returns
     -------
@@ -192,7 +195,7 @@ def prepare_data(dataset, batch_size):
     test_loader : torch.utils.data.DataLoader
         Data loader for the test set
     num_classes : int
-        Number of classes in the dataset
+        Number of classes in the datasetd
     """
     kernels = [
         utils.DoGKernel(3,3/9,6/9),
@@ -208,25 +211,75 @@ def prepare_data(dataset, batch_size):
 
     # Load dataset
     if dataset == "mnist":
-        data_root = "data/"
-        num_classes = 10
-        in_channels = 6
-        train_data = utils.CacheDataset(
-            torchvision.datasets.MNIST(
-                root = data_root,
-                train = True,
-                download = True,
-                transform = s1c1
+        if not augment:
+            data_root = "data/"
+            num_classes = 10
+            in_channels = 6
+            train_data = utils.CacheDataset(
+                torchvision.datasets.MNIST(
+                    root = data_root,
+                    train = True,
+                    download = True,
+                    transform = s1c1
+                )
             )
-        )
-        test_data = utils.CacheDataset(
-            torchvision.datasets.MNIST(
-                root = data_root,
-                train = False,
-                download = True,
-                transform = s1c1
+            test_data = utils.CacheDataset(
+                torchvision.datasets.MNIST(
+                    root = data_root,
+                    train = False,
+                    download = True,
+                    transform = s1c1
+                )
             )
-        )
+        else:
+            num_classes = 10
+            in_channels = 6
+            augmentations = torchvision.transforms.Compose([
+                torchvision.transforms.RandomRotation(30),
+                torchvision.transforms.RandomHorizontalFlip(),
+                torchvision.transforms.RandomVerticalFlip(),
+                AddSaltPepperNoise(salt_prob=0.01, pepper_prob=0.01),
+                RandomRowColumnMasking(mask_type='row', p=0.1),
+                RandomRowColumnMasking(mask_type='column', p=0.1)
+            ])
+            transform_original = s1c1
+            transofrm_augmented = torchvision.transforms.Compose([
+                augmentations,
+                s1c1
+            ])
+
+            train_data_original = utils.CacheDataset(
+                torchvision.datasets.MNIST(
+                    root = "data/",
+                    train = True,
+                    download = True,
+                    transform = transform_original
+                )
+            )
+            train_data_augmented = utils.CacheDataset(
+                torchvision.datasets.MNIST(
+                    root = "data/",
+                    train = True,
+                    download = True,
+                    transform = transofrm_augmented
+                )
+            )
+
+            if ratio < 1:
+                random_indices = torch.randperm(len(train_data_augmented))[:int(ratio * len(train_data_augmented))]
+                train_data_augmented = torch.utils.data.Subset(train_data_augmented, random_indices)
+
+            train_data = torch.utils.data.ConcatDataset([train_data_original, train_data_augmented])
+            test_data = utils.CacheDataset(
+                torchvision.datasets.MNIST(
+                    root = "data/",
+                    train = False,
+                    download = True,
+                    transform = s1c1
+                )
+            )
+
+
     elif dataset == "cifar10":
         num_classes = 10
         data_root = "data/"
@@ -307,6 +360,11 @@ def prepare_data(dataset, batch_size):
     else:
         raise ValueError(f"Unknown dataset: {dataset}")
     
+    if ratio < 1:
+        train_size = int(ratio * len(train_data))
+        random_indices = torch.randperm(len(train_data))[:train_size]
+        train_data = torch.utils.data.Subset(train_data, random_indices)
+
     train_loader = torch.utils.data.DataLoader(
         train_data,
         batch_size = batch_size,
@@ -535,3 +593,54 @@ caltech101_classes = ['BACKGROUND_Google', 'Faces_easy', 'Leopards', 'Motorbikes
 'snoopy', 'soccer_ball', 'stapler', 'starfish', 'stegosaurus', 'stop_sign',
 'strawberry', 'sunflower', 'tick', 'trilobite', 'umbrella', 'watch',
 'water_lilly', 'wheelchair', 'wild_cat', 'windsor_chair', 'wrench', 'yin_yang']
+
+
+class AddSaltPepperNoise(object):
+    def __init__(self, salt_prob=0.01, pepper_prob=0.01):
+        """
+        salt_prob: Probability of adding salt (white) noise
+        pepper_prob: Probability of adding pepper (black) noise
+        """
+        self.salt_prob = salt_prob
+        self.pepper_prob = pepper_prob
+
+    def __call__(self, tensor):
+        # Ensure the input tensor is in [C, H, W] format
+        for c in range(tensor.size(0)):  # Iterate over channels
+            # Salt (white noise)
+            salt_mask = torch.rand(tensor.size(1), tensor.size(2)) < self.salt_prob
+            tensor[c][salt_mask] = 1.0  # Set to white (max intensity)
+
+            # Pepper (black noise)
+            pepper_mask = torch.rand(tensor.size(1), tensor.size(2)) < self.pepper_prob
+            tensor[c][pepper_mask] = 0.0  # Set to black (min intensity)
+
+        return tensor
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}(salt_prob={self.salt_prob}, pepper_prob={self.pepper_prob})"
+
+class RandomRowColumnMasking(object):
+    def __init__(self, mask_type='row', p=0.5):
+        """
+        mask_type: 'row' for row masking, 'column' for column masking
+        p: probability of masking a row/column
+        """
+        self.mask_type = mask_type
+        self.p = p
+
+    def __call__(self, tensor):
+        if self.mask_type == 'row':
+            # Randomly mask rows
+            for i in range(tensor.size(1)):  # Assuming shape is [channels, height, width]
+                if random.random() < self.p:
+                    tensor[:, i, :] = 0  # Mask entire row
+        elif self.mask_type == 'column':
+            # Randomly mask columns
+            for i in range(tensor.size(2)):  # Assuming shape is [channels, height, width]
+                if random.random() < self.p:
+                    tensor[:, :, i] = 0  # Mask entire column
+        return tensor
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}(mask_type={self.mask_type}, p={self.p})"
