@@ -301,7 +301,7 @@ class NetworkTrainer(nn.Module):
         plt.tight_layout()
 
         plt.savefig(file_path)
-        plt.show()
+        plt.close()
 
     def register_hooks(self):
         """

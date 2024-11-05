@@ -132,6 +132,8 @@ class S1C1Transform:
 def train(data, target, network):
     network.train()
     perf = np.array([0,0,0]) # correct, wrong, silence
+    category_perf = {i: np.array([0, 0, 0]) for i in range(network.number_of_classes)}
+    # print("category_perf", category_perf)
     network.update_dropout()
     for i in range(len(data)):
         data_in = data[i]
@@ -144,18 +146,22 @@ def train(data, target, network):
             if d == target_in:
                 perf[0]+=1
                 network.reward()
+                category_perf[target_in.cpu().item()][0] += 1
             else:
                 perf[1]+=1
                 network.punish()
+                category_perf[target_in.cpu().item()][1] += 1
         else:
             perf[2]+=1
-    return perf/len(data)
+            category_perf[target_in.cpu().item()][2] += 1
+    return perf/len(data), category_perf
 
 # %%
 # test one batch (here a batch contains all data so it is an epoch)
 def test(data, target, network):
     network.eval()
     perf = np.array([0,0,0]) # correct, wrong, silence
+    category_perf = {i: np.array([0, 0, 0]) for i in range(network.number_of_classes)}
     for i in range(len(data)):
         data_in = data[i]
         target_in = target[i]
@@ -166,11 +172,14 @@ def test(data, target, network):
         if d != -1:
             if d == target_in:
                 perf[0]+=1
+                category_perf[target_in.cpu().item()][0] += 1
             else:
                 perf[1]+=1
+                category_perf[target_in.cpu().item()][1] += 1
         else:
             perf[2]+=1
-    return perf/len(data)
+            category_perf[target_in.cpu().item()][2] += 1
+    return perf/len(data), category_perf
 
 
 def main():
@@ -178,7 +187,7 @@ def main():
     # %%
     parser = argparse.ArgumentParser(description='Mozafari 2018')
     parser.add_argument('--task', type=str, default='ETH', help='Task to perform: Caltech, ETH, Norb', choices=['Caltech', 'ETH', 'Norb'])
-    parser.add_argument('--use_cuda', type=bool, default=True, help='Use CUDA', choices=[True, False])
+    parser.add_argument('--use_cuda', action='store_true', help='Use CUDA')
     parser.add_argument('--tensorboard', action='store_true', help='Use Tensorboard')
     args = parser.parse_args()
     # %%
@@ -203,8 +212,8 @@ def main():
     # %%
     if task == "Caltech":
         s1c1 = S1C1Transform(filter, 7, 6, lateral_inhibition, size=(128, 128))
-        trainsetfolder = utils.CacheDataset(ImageFolder("facemotortrain", s1c1))
-        testsetfolder = utils.CacheDataset(ImageFolder("facemotortest", s1c1))
+        trainsetfolder = utils.CacheDataset(ImageFolder("data/facemotor/train", s1c1))
+        testsetfolder = utils.CacheDataset(ImageFolder("data/facemotor/test", s1c1))
         mozafari = Mozafari2018(4, 10, 2, (17,17), 42, (0.005, -0.0025), (-0.005, 0.0005), 0.5)
         trainset = DataLoader(trainsetfolder, batch_size = len(trainsetfolder), shuffle = True)
         testset = DataLoader(testsetfolder, batch_size = len(testsetfolder), shuffle = True)
@@ -252,7 +261,7 @@ def main():
     anp = mozafari.anti_stdp_lr[0]
 
     # save learning rates to file
-    with open("learning_rates.csv", "w") as f:
+    with open("results/learning_rates.csv", "w") as f:
         f.write(f"apr,anr,app,anp\n")
 
     adaptive_min = 0.2
@@ -266,26 +275,41 @@ def main():
     best_train = np.array([0,0,0,0]) # correct, wrong, silence, epoch
     best_test = np.array([0,0,0,0]) # correct, wrong, silence, epoch
 
+    with open("results/category_perf_train.csv", "w") as f:
+        f.write("epoch,accuracy,loss,silence,correct_face,wrong_face,silence_face,correct_motor,wrong_motor,silence_motor\n")
+    with open("results/category_perf_test.csv", "w") as f:
+        f.write("epoch,accuracy,loss,silence,correct_face,wrong_face,silence_face,correct_motor,wrong_motor,silence_motor\n")
+
     # %%
     for epoch in range(max_epoch):
-        with open("learning_rates.csv", "a") as f:
+        with open("results/learning_rates.csv", "a") as f:
             f.write(f"{apr_adapt},{anr_adapt},{app_adapt},{anp_adapt}\n")
         print("Epoch #:", epoch)
         for data, target in trainset:
-            perf_train = train(data, target, mozafari)
+            perf_train, category_perf = train(data, target, mozafari)
             if args.tensorboard:
                 writer.add_scalar('Train/Accuracy_Iteration', perf_train[0], epoch)
                 writer.add_scalar('Train/Loss_Iteration', 1 - perf_train[0], epoch)
+            with open("results/category_perf_train.csv", "a") as f:
+                f.write(f"{epoch},{perf_train[0]},{perf_train[1]},{perf_train[2]},")
+                for i in range(mozafari.number_of_classes):
+                    f.write(f"{category_perf[i][0]},{category_perf[i][1]},{category_perf[i][2]},")
+                f.write("\n")
 
         if best_train[0] <= perf_train[0]:
             best_train = np.append(perf_train, epoch)
         print("Current Train:", perf_train)
         print("   Best Train:", best_train)
         for data_test, target_test in testset:
-            perf_test = test(data_test, target_test, mozafari)
+            perf_test, category_perf = test(data_test, target_test, mozafari)
             if args.tensorboard:
                 writer.add_scalar('Test/Accuracy_Iteration', perf_test[0], epoch)
                 writer.add_scalar('Test/Loss_Iteration', 1 - perf_test[0], epoch)
+            with open("results/category_perf_test.csv", "a") as f:
+                f.write(f"{epoch},{perf_test[0]},{perf_test[1]},{perf_test[2]},")
+                for i in range(mozafari.number_of_classes):
+                    f.write(f"{category_perf[i][0]},{category_perf[i][1]},{category_perf[i][2]},")
+                f.write("\n")
         if best_test[0] <= perf_test[0]:
             best_test = np.append(perf_test, epoch)
             torch.save(mozafari.state_dict(), "saved.net")
@@ -299,8 +323,39 @@ def main():
         anp_adapt = anp * (perf_train[0] * adaptive_int + adaptive_min)
         mozafari.update_learning_rates(apr_adapt, anr_adapt, app_adapt, anp_adapt)
 
+        feature = torch.tensor([
+            [
+                [1]
+            ]
+            ]).float()
+        if use_cuda:
+            feature = feature.cuda()
+
+        cstride = (1,1)
+
+        # %%
+        # S1 Features #
+        if use_cuda:
+            feature,cstride = vis.get_deep_feature(feature, cstride, (filter.max_window_size, filter.max_window_size), (1,1), filter.kernels.cuda())
+            # save features to file
+            for i in range(len(feature)):
+                vis.plot_tensor_in_image(f'results/{epoch}_{task}_feature_s1_'+str(i).zfill(4)+'.png',feature[i])
+        else:
+            feature,cstride = vis.get_deep_feature(feature, cstride, (filter.max_window_size, filter.max_window_size), (1,1), filter.kernels)
+        # C1 Features #
+        feature,cstride = vis.get_deep_feature(feature, cstride, (s1c1.pooling_size, s1c1.pooling_size), (s1c1.pooling_stride, s1c1.pooling_stride))
+        # save features to file
+        for i in range(len(feature)):
+            vis.plot_tensor_in_image(f'results/{epoch}_{task}_feature_c1_'+str(i).zfill(4)+'.png',feature[i])
+
+        # S2 Features #
+        feature,cstride = vis.get_deep_feature(feature, cstride, mozafari.kernel_size, (1,1), mozafari.s2.weight)
+        # save features to file
+        for i in range(mozafari.number_of_features):
+            vis.plot_tensor_in_image(f'results/{epoch}_{task}_feature_s2_'+str(i).zfill(4)+'.png',feature[i])
+
         # early stopping if no improvement in 20 epochs
-        if epoch - best_test[3] > 50:
+        if epoch - best_test[3] > 250:
             break
     # %%
     # Features #
@@ -327,4 +382,8 @@ def main():
 
     # %%
     for i in range(mozafari.number_of_features):
-        vis.plot_tensor_in_image(f'{task}_feature_s2_'+str(i).zfill(4)+'.png',feature[i])
+        vis.plot_tensor_in_image(f'results/{epoch}_{task}_final_feature_s2_'+str(i).zfill(4)+'.png',feature[i])
+
+
+if __name__ == "__main__":
+    main()
