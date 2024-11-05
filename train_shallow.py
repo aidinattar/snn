@@ -196,6 +196,8 @@ def main():
 
     # %%
     task = args.task
+    # define use_cuda globally
+    global use_cuda
     use_cuda = args.use_cuda
 
     # %%
