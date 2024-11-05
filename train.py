@@ -33,6 +33,8 @@ def main():
     parser.add_argument("--dataset", type=str, default="mnist", help="Dataset to use")
     parser.add_argument("--epochs", type=int, nargs='+', default=[2, 4, 100], help="Number of epochs to train each layer")
     parser.add_argument("--batch_size", type=int, default=1000, help="Batch size for the data loader")
+    parser.add_argument("--augment", action="store_true", default=False, help="Enable data augmentation")
+    parser.add_argument("--ratio", type=float, default=1.0, help="Ratio of training data to use")
     parser.add_argument("--device", type=str, default="cuda", help="Device to use for training")
     parser.add_argument("--tensorboard", action="store_true", default=False, help="Enable TensorBoard logging")
     parser.add_argument("--debug", action="store_true", default=False, help="Enable debug mode")
@@ -49,7 +51,7 @@ def main():
         os.mkdir("models")
 
     # Prepare the data
-    train_loader, test_loader, metrics_loader, num_classes, in_channels = utils.prepare_data(args.dataset, args.batch_size)
+    train_loader, test_loader, metrics_loader, num_classes, in_channels = utils.prepare_data(args.dataset, args.batch_size, args.augment, args.ratio)
 
     # Initialize the model
     if args.model == "mozafari2018":
@@ -91,7 +93,12 @@ def main():
     model.to(args.device)
 
     if args.tensorboard:
-        model.define_writer(log_dir=f"runs/{args.model}/{args.dataset}")
+        if args.augment:
+            model.define_writer(log_dir=f"runs/{args.model}/{args.dataset}/augmented/ratio_{args.ratio}")
+        elif args.ratio < 1.0:
+            model.define_writer(log_dir=f"runs/{args.model}/{args.dataset}/ratio_{args.ratio}")
+        else:
+            model.define_writer(log_dir=f"runs/{args.model}/{args.dataset}")
 
     if args.debug:
         # Check if the model is on CUDA
@@ -111,10 +118,11 @@ def main():
     # Train the model           #
     #############################
     # First layer
-    if os.path.isfile(f"models/{args.model}_{args.dataset}_first_layer.pth"):
+    first_layer_name = f"models/{args.model}_{args.dataset}{'_augmented' if args.augment else ''}{'_ratio_' + str(args.ratio) if args.ratio < 1.0 else ''}_first_layer.pth"
+    if os.path.isfile(first_layer_name):
         print("Loading first layer model")
         model.load_state_dict(
-            torch.load(f"models/{args.model}_{args.dataset}_first_layer.pth"),
+            torch.load(first_layer_name),
             strict = False
         )
     else:
@@ -127,13 +135,14 @@ def main():
                 model.train_unsupervised(data, layer_idx=1)
                 iterator.set_postfix({"Iteration": i+1})
                 i += 1
-        torch.save(model.state_dict(), f"models/{args.model}_{args.dataset}_first_layer.pth")
+        torch.save(model.state_dict(), first_layer_name)
 
     # second layer
-    if os.path.isfile(f"models/{args.model}_{args.dataset}_second_layer.pth"):
+    second_layer_name = f"models/{args.model}_{args.dataset}{'_augmented' if args.augment else ''}{'_ratio_' + str(args.ratio) if args.ratio < 1.0 else ''}_second_layer.pth"
+    if os.path.isfile(second_layer_name):
         print("Loading second layer model")
         model.load_state_dict(
-            torch.load(f"models/{args.model}_{args.dataset}_second_layer.pth"),
+            torch.load(second_layer_name),
             strict = False
         )
     else:
@@ -147,14 +156,15 @@ def main():
                 iterator.set_postfix({"Iteration": i+1})
                 i += 1
         # save model
-        torch.save(model.state_dict(), f"models/{args.model}_{args.dataset}_second_layer.pth")
+        torch.save(model.state_dict(), second_layer_name)
 
     if args.model in ["deep2024", "deepr2024", "deepr2024_2", 'resnet2024', 'deeper2024']:
         # third layer
-        if os.path.isfile(f"models/{args.model}_{args.dataset}_third_layer.pth"):
+        third_layer_name = f"models/{args.model}_{args.dataset}{'_augmented' if args.augment else ''}{'_ratio_' + str(args.ratio) if args.ratio < 1.0 else ''}_third_layer.pth"
+        if os.path.isfile(third_layer_name):
             print("Loading third layer model")
             model.load_state_dict(
-                torch.load(f"models/{args.model}_{args.dataset}_third_layer.pth"),
+                torch.load(third_layer_name),
                 strict = False
             )
         else:
@@ -168,14 +178,15 @@ def main():
                     iterator.set_postfix({"Iteration": i+1})
                     i += 1
             # save model
-            torch.save(model.state_dict(), f"models/{args.model}_{args.dataset}_third_layer.pth")
+            torch.save(model.state_dict(), third_layer_name)
 
     if args.model in ["inception2024"]:
         # third layer
-        if os.path.isfile(f"models/{args.model}_{args.dataset}_third_layer.pth"):
+        third_layer_name = f"models/{args.model}_{args.dataset}{'_augmented' if args.augment else ''}{'_ratio_' + str(args.ratio) if args.ratio < 1.0 else ''}_third_layer.pth"
+        if os.path.isfile(third_layer_name):
             print("Loading third layer model")
             model.load_state_dict(
-                torch.load(f"models/{args.model}_{args.dataset}_third_layer.pth"),
+                torch.load(third_layer_name),
                 strict = False
             )
         else:
@@ -190,14 +201,15 @@ def main():
                         iterator.set_postfix({"Iteration": i+1})
                         i += 1
             # save model
-            torch.save(model.state_dict(), f"models/{args.model}_{args.dataset}_third_layer.pth")
+            torch.save(model.state_dict(), third_layer_name)
 
     if args.model in ["deeper2024"]:
         # fourth layer
-        if os.path.isfile(f"models/{args.model}_{args.dataset}_fourth_layer.pth"):
+        fourth_layer_name = f"models/{args.model}_{args.dataset}{'_augmented' if args.augment else ''}{'_ratio_' + str(args.ratio) if args.ratio < 1.0 else ''}_fourth_layer.pth"
+        if os.path.isfile(fourth_layer_name):
             print("Loading fourth layer model")
             model.load_state_dict(
-                torch.load(f"models/{args.model}_{args.dataset}_fourth_layer.pth"),
+                torch.load(fourth_layer_name),
                 strict = False
             )
         else:
@@ -211,7 +223,7 @@ def main():
                     iterator.set_postfix({"Iteration": i+1})
                     i += 1
             # save model
-            torch.save(model.state_dict(), f"models/{args.model}_{args.dataset}_fourth_layer.pth")
+            torch.save(model.state_dict(), fourth_layer_name)
 
     # # Log initial embeddings
     # embeddings, metadata, label_img = utils.get_embeddings_metadata(model, train_loader, args.device, max_layers)
@@ -412,7 +424,7 @@ def main():
             # embeddings, metadata, label_img = utils.get_embeddings_metadata(model, train_loader, args.device, max_layers)
             # model.writer.add_embedding(embeddings, metadata, label_img, global_step=epoch, tag='Embeddings')
 
-            if epoch - best_test[3] > 10:
+            if epoch - best_test[3] > 5:
                 break
 
     except KeyboardInterrupt:
