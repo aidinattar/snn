@@ -117,7 +117,7 @@ def main():
     cached_train_dataset = DiskCachedDataset(train_dataset, cache_path=f'./data/cache/{args.dataset}/train/')
     cached_test_dataset = DiskCachedDataset(test_dataset, cache_path=f'./data/cache/{args.dataset}/test/')
     train_loader = DataLoader(cached_train_dataset, batch_size=args.batch_size, shuffle=True, collate_fn=tonic.collation.PadTensors(batch_first=False))
-    test_loader = DataLoader(cached_test_dataset, batch_size=args.batch_size, shuffle=False, collate_fn=tonic.collation.PadTensors(batch_first=False))
+    test_loader = DataLoader(cached_test_dataset, batch_size=len(cached_test_dataset), shuffle=False, collate_fn=tonic.collation.PadTensors(batch_first=False))
 
     del train_dataset, test_dataset
 
@@ -330,20 +330,20 @@ def main():
 
                 iterator_test.set_postfix(accuracy=accuracy_score(y_true, y_pred))
 
-            print(y_true, y_pred)
+            # print(y_true, y_pred)
 
             # Log the accuracy and confusion matrix in TensorBoard
             accuracy = accuracy_score(y_true, y_pred)
             iterator.set_postfix(loss=epoch_loss, accuracy=accuracy)
             cm = confusion_matrix(y_true, y_pred)
             if args.tensorboard:
-                writer.add_scalar('Test/Accuracy', accuracy, 0)
+                writer.add_scalar('Test/Accuracy', accuracy, epoch)
                 fig, ax = plt.subplots()
                 cax = ax.matshow(cm, cmap='coolwarm')
                 fig.colorbar(cax)
                 plt.xlabel('Predicted')
                 plt.ylabel('True')
-                writer.add_figure('Confusion Matrix', fig, 0)
+                writer.add_figure('Confusion Matrix', fig, epoch)
 
     # Compute the accuracy
     accuracy = accuracy_score(y_true, y_pred)

@@ -20,10 +20,12 @@ import torchvision
 import matplotlib.pyplot as plt
 from s1c1 import S1C1
 from SpykeTorch import utils
+import torchvision.transforms.v2
 from tqdm import tqdm
 from imageio import imwrite
 from sklearn.preprocessing import LabelEncoder
 import tonic
+import PIL
 
 def get_time():
     """Get the current time"""
@@ -206,11 +208,10 @@ def prepare_data(dataset, batch_size, augment=False, ratio=1):
         utils.DoGKernel(13,26/9,13/9)
     ]
 
-    filter = utils.Filter(kernels, padding=6, thresholds=50)
-    s1c1 = S1C1(filter, timesteps=15)
-
     # Load dataset
     if dataset == "mnist":
+        filter = utils.Filter(kernels, padding=6, thresholds=50)
+        s1c1 = S1C1(filter, timesteps=15)
         if not augment:
             data_root = "data/"
             num_classes = 10
@@ -238,9 +239,6 @@ def prepare_data(dataset, batch_size, augment=False, ratio=1):
                 torchvision.transforms.RandomRotation(30),
                 torchvision.transforms.RandomHorizontalFlip(),
                 torchvision.transforms.RandomVerticalFlip(),
-                AddSaltPepperNoise(salt_prob=0.01, pepper_prob=0.01),
-                RandomRowColumnMasking(mask_type='row', p=0.1),
-                RandomRowColumnMasking(mask_type='column', p=0.1)
             ])
             transform_original = s1c1
             transofrm_augmented = torchvision.transforms.Compose([
@@ -279,11 +277,42 @@ def prepare_data(dataset, batch_size, augment=False, ratio=1):
                 )
             )
 
-
     elif dataset == "cifar10":
+        
+        # kernels = [
+        #     utils.DoGKernel(3,3/9,6/9),utils.DoGKernel(3,3/9,6/9),utils.DoGKernel(3,3/9,6/9),
+        #     utils.DoGKernel(3,6/9,3/9),utils.DoGKernel(3,6/9,3/9),utils.DoGKernel(3,6/9,3/9),
+        #     utils.DoGKernel(7,7/9,14/9),utils.DoGKernel(7,7/9,14/9),utils.DoGKernel(7,7/9,14/9),
+        #     utils.DoGKernel(7,14/9,7/9),utils.DoGKernel(7,14/9,7/9),utils.DoGKernel(7,14/9,7/9),
+        #     utils.DoGKernel(13,13/9,26/9),utils.DoGKernel(13,13/9,26/9),utils.DoGKernel(13,13/9,26/9),
+        #     utils.DoGKernel(13,26/9,13/9),utils.DoGKernel(13,26/9,13/9),utils.DoGKernel(13,26/9,13/9),
+        # ]
+
+        # filter = utils.Filter(kernels, padding=6, thresholds=50, multy_channel=True)
+        # s1c1 = S1C1(filter, timesteps=15)
+        # Adjust the kernel sizes or add new ones if needed
+        kernels = [
+            utils.DoGKernel(5, 3/9, 6/9),utils.DoGKernel(5, 3/9, 6/9),utils.DoGKernel(5, 3/9, 6/9),
+            utils.DoGKernel(5, 6/9, 3/9),utils.DoGKernel(5, 6/9, 3/9),utils.DoGKernel(5, 6/9, 3/9),
+            utils.DoGKernel(9, 7/9, 14/9),utils.DoGKernel(9, 7/9, 14/9),utils.DoGKernel(9, 7/9, 14/9),
+            utils.DoGKernel(9, 14/9, 7/9),utils.DoGKernel(9, 14/9, 7/9),utils.DoGKernel(9, 14/9, 7/9),
+            utils.DoGKernel(15, 13/9, 26/9),utils.DoGKernel(15, 13/9, 26/9),utils.DoGKernel(15, 13/9, 26/9),
+            utils.DoGKernel(15, 26/9, 13/9),utils.DoGKernel(15, 26/9, 13/9),utils.DoGKernel(15, 26/9, 13/9),
+        ]
+
+        # Adjust padding and thresholds based on new kernel sizes
+        filter = utils.Filter(kernels, padding=8, thresholds=[40] * len(kernels), multy_channel=True)
+
+        # Increase timesteps for temporal encoding
+        s1c1 = S1C1(filter, timesteps=20)
+        # # Adjust padding and thresholds based on new kernel sizes
+        # filter = utils.Filter(kernels, padding=8, thresholds=[40] * len(kernels))
+        # # Increase timesteps for temporal encoding
+        # s1c1 = S1C1(filter, timesteps=20)
+
         num_classes = 10
         data_root = "data/"
-        in_channels = 6
+        in_channels = 18
         train_data = utils.CacheDataset(
             torchvision.datasets.CIFAR10(
                 root = data_root,
@@ -292,6 +321,7 @@ def prepare_data(dataset, batch_size, augment=False, ratio=1):
                 transform = s1c1
             )
         )
+        print("Train data sample shape:", train_data[0][0].shape)
         test_data = utils.CacheDataset(
             torchvision.datasets.CIFAR10(
                 root = data_root,
@@ -301,6 +331,9 @@ def prepare_data(dataset, batch_size, augment=False, ratio=1):
             )
         )
     elif dataset == "emnist":
+        filter = utils.Filter(kernels, padding=6, thresholds=50)
+        s1c1 = S1C1(filter, timesteps=15)
+
         num_classes = 47
         data_root = "data/"
         in_channels = 6
@@ -360,7 +393,7 @@ def prepare_data(dataset, batch_size, augment=False, ratio=1):
     else:
         raise ValueError(f"Unknown dataset: {dataset}")
     
-    if ratio < 1:
+    if ratio < 1 and not augment:
         train_size = int(ratio * len(train_data))
         random_indices = torch.randperm(len(train_data))[:train_size]
         train_data = torch.utils.data.Subset(train_data, random_indices)
@@ -605,14 +638,16 @@ class AddSaltPepperNoise(object):
         self.pepper_prob = pepper_prob
 
     def __call__(self, tensor):
+        if isinstance(tensor, PIL.Image.Image):
+            tensor = torch.tensor(np.array(tensor))
         # Ensure the input tensor is in [C, H, W] format
         for c in range(tensor.size(0)):  # Iterate over channels
             # Salt (white noise)
-            salt_mask = torch.rand(tensor.size(1), tensor.size(2)) < self.salt_prob
+            salt_mask = torch.rand(tensor.size(0), tensor.size(1)) < self.salt_prob
             tensor[c][salt_mask] = 1.0  # Set to white (max intensity)
 
             # Pepper (black noise)
-            pepper_mask = torch.rand(tensor.size(1), tensor.size(2)) < self.pepper_prob
+            pepper_mask = torch.rand(tensor.size(0), tensor.size(1)) < self.pepper_prob
             tensor[c][pepper_mask] = 0.0  # Set to black (min intensity)
 
         return tensor
@@ -630,17 +665,30 @@ class RandomRowColumnMasking(object):
         self.p = p
 
     def __call__(self, tensor):
+        if isinstance(tensor, PIL.Image.Image):
+            tensor = torch.tensor(np.array(tensor))
         if self.mask_type == 'row':
             # Randomly mask rows
-            for i in range(tensor.size(1)):  # Assuming shape is [channels, height, width]
+            for i in range(tensor.size(0)):  # Assuming shape is [channels, height, width]
                 if random.random() < self.p:
                     tensor[:, i, :] = 0  # Mask entire row
         elif self.mask_type == 'column':
             # Randomly mask columns
-            for i in range(tensor.size(2)):  # Assuming shape is [channels, height, width]
+            for i in range(tensor.size(1)):  # Assuming shape is [channels, height, width]
                 if random.random() < self.p:
                     tensor[:, :, i] = 0  # Mask entire column
         return tensor
 
     def __repr__(self):
         return f"{self.__class__.__name__}(mask_type={self.mask_type}, p={self.p})"
+
+class AddGaussianNoise(object):
+    def __init__(self, mean=0., std=1.):
+        self.std = std
+        self.mean = mean
+        
+    def __call__(self, tensor):
+        return tensor + torch.randn(tensor.size()) * self.std + self.mean
+    
+    def __repr__(self):
+        return self.__class__.__name__ + '(mean={0}, std={1})'.format(self.mean, self.std)

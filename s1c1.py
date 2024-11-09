@@ -26,6 +26,7 @@ class S1C1:
         """Generate the temporal encoding of the input"""
         # if self.cnt % 1000 == 0:
         #     print(self.cnt)
+        # image = transforms.Grayscale()(image)
         self.cnt += 1
         image = self.to_tensor(image) * 255
         image.unsqueeze_(0)

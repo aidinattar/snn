@@ -441,8 +441,8 @@ class MajoritySNN(NetworkTrainer):
         
         # Logging to TensorBoard
         if self.tensorboard:
-            self.writer.add_scalar('Train_Iteration/Loss', avg_loss, self.iteration)
-            self.writer.add_scalar('Train_Iteration/Accuracy', accuracy, self.iteration)
+            self.writer.add_scalar('Train/Loss_Iteration', avg_loss, self.iteration)
+            self.writer.add_scalar('Train/Accuracy_Iteration', accuracy, self.iteration)
 
         self.iteration += 1
         
@@ -505,7 +505,7 @@ class MajoritySNN(NetworkTrainer):
             target_in = target_in.to(self.device)
             d, _ = self(data_in, layer_idx)
             if d != -1:
-                self.all_preds.append(d)
+                self.all_preds.append(d.cpu().item())
                 self.all_targets.append(target_in.cpu().item())
         
         self.all_preds = np.array(self.all_preds)

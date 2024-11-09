@@ -57,14 +57,14 @@ class MozafariMNIST2018(NetworkTrainer):
         })
 
         self.block1_params = {
-            'threshold': 15,
-            # 'threshold': .5,
+            # 'threshold': 15,
+            'threshold': 12,
             'n_winners': 5,
             'inhibition_radius': 3,
         }
         self.block2_params = {
             'threshold': 10,
-            # 'threshold': .2,
+            # 'threshold': 8,
             'n_winners': 8,
             'inhibition_radius': 1,
         }

@@ -112,7 +112,10 @@ def main():
 
     # Log model to TensorBoard
     if args.tensorboard:
-        model.log_model(input_size=(15,in_channels,28,28))
+        try:
+            model.log_model(input_size=(15,in_channels,28,28))
+        except RuntimeError:
+            print("Model logging failed")
 
     #############################
     # Train the model           #
