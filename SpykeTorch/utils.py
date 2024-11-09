@@ -218,7 +218,7 @@ class Filter:
     """
     # filter_kernels must be a list of filter kernels
     # thresholds must be a list of thresholds for each kernel
-    def __init__(self, filter_kernels, padding=0, thresholds=None, use_abs=False):
+    def __init__(self, filter_kernels, padding=0, thresholds=None, use_abs=False, multy_channel=False):
         tensor_list = []
         self.max_window_size = 0
         for kernel in filter_kernels:
@@ -232,11 +232,14 @@ class Filter:
             p = (self.max_window_size - filter_kernels[i].window_size)//2
             tensor_list[i] = fn.pad(tensor_list[i], (p,p,p,p))
 
-        self.kernels = torch.stack(tensor_list)
+        if multy_channel:
+            self.kernels = torch.stack(tensor_list).repeat(1,3,1,1)
+        else:
+            self.kernels = torch.stack(tensor_list)
         self.number_of_kernels = len(filter_kernels)
         self.padding = padding
         if isinstance(thresholds, list):
-            self.thresholds = thresholds.clone().detach()
+            self.thresholds = torch.tensor(thresholds).clone().detach()
             self.thresholds.unsqueeze_(0).unsqueeze_(2).unsqueeze_(3)
         else:
             self.thresholds = thresholds
