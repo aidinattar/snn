@@ -420,8 +420,8 @@ class DeepRSNN2(DeepRSNN):
     """Implementation of a deep SNN for the MNIST dataset with two R-STDP layers,
     trained in a greedy layer-wise manner"""
 
-    def __init__(self, num_classes, device="cuda", tensorboard=True):
-        super(DeepRSNN2, self).__init__(num_classes=num_classes, device=device, tensorboard=tensorboard)
+    def __init__(self, in_channels, num_classes, device="cuda", tensorboard=True):
+        super(DeepRSNN2, self).__init__(in_channels=in_channels, num_classes=num_classes, device=device, tensorboard=tensorboard)
 
     def update_learning_rates(self, stdp_ap, stdp_an, anti_stdp_ap, anti_stdp_an, layer_idx):
         """

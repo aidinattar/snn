@@ -17,6 +17,7 @@ import snntorch as snn
 import torch.nn.functional as F
 from tqdm import tqdm
 from torch.nn import init
+from tqdm import tqdm
 
 class LSM(nn.Module):
     def __init__(
@@ -776,9 +777,6 @@ def initialize_partitioned_weights(input_weight_scale, local_reservoir_weight_sc
 
     return input_weights, local_reservoir_weights.T, cross_partition_inhibitory_weights.T
 
-
-import numpy as np
-from tqdm import tqdm
 
 def initialize_conv_weights(input_weight_scale, reservoir_weight_scale, input_channels, input_height, input_width,
                             kernel_size, decay_factor=9, inhibitory_fraction=0.2, 
