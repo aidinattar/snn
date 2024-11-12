@@ -86,15 +86,6 @@ A deep network with an inception-like block that extracts features over differen
 #### Majority2024
 Similar to inception2024.py but uses a form of population coding with a majority rule instead of concatenating parallel layers.
 
-### Results and Visualization
-#### Training History
-The training history, including accuracy and loss for each epoch, is saved and can be visualized using TensorBoard.
-
-#### Activation Maps
-Activation maps for each layer can be optionally saved for further analysis. Note that saving activation maps can take a significant amount of time, and can be disabled if not needed.
-
-#### Evaluation Metrics
-The evaluation metrics, including confusion matrix, F1 score, ROC AUC score, and accuracy, are computed and saved during the evaluation phase.
 
 ## Acknowledgements
 This repository is based on the work of Mozafari et al. and utilizes the SpykeTorch library for SNN training and evaluation.
